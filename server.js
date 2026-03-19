@@ -694,8 +694,9 @@ app.get('/api/data', async (req, res) => {
     // Sort games: live first, then upcoming by section, then completed (play-ins first, then others)
     const live = games.filter(g => g.isLive);
     const upcoming = games.filter(g => !g.isLive && !g.isFinal).sort((a, b) => {
-      if (a.section !== b.section) return a.section === 'Thursday' ? -1 : 1;
-      return 0;
+      const da = a.date ? new Date(a.date).getTime() : Infinity;
+      const db = b.date ? new Date(b.date).getTime() : Infinity;
+      return da - db;
     });
     const completed = [
       ...games.filter(g => g.isFinal),
