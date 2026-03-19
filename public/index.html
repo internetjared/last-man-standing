@@ -105,15 +105,16 @@ html { overscroll-behavior-y: none; }
   border-radius: 8px; font-size: 12px; font-weight: 600; gap: 5px;
   min-height: 36px;
 }
-.team-chip.alive { background: var(--green-bg); color: var(--green); }
+.team-chip.survived { background: rgba(34,197,94,0.06); color: rgba(34,197,94,0.7); }
+.team-chip.alive, .team-chip.upcoming { background: rgba(107,107,128,0.08); color: var(--dim); }
 .team-chip.eliminated { background: var(--red-bg); color: var(--red); opacity: 0.6; }
 .team-chip.eliminated .chip-team { text-decoration: line-through; }
-.team-chip.upcoming { background: rgba(107,107,128,0.08); color: var(--dim); }
 .team-chip.playing { transition: background 1s ease, color 0.5s ease; }
 .chip-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
-.alive .chip-dot { background: var(--green); }
+.survived .chip-dot { display: none; }
+.survived .chip-check { font-size: 10px; flex-shrink: 0; }
+.alive .chip-dot, .upcoming .chip-dot { background: var(--dim); }
 .eliminated .chip-dot { background: var(--red); }
-.upcoming .chip-dot { background: var(--dim); }
 .playing .chip-dot { background: var(--yellow); animation: pulse 2s infinite; }
 .chip-main { flex: 1; min-width: 0; }
 .chip-team { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
@@ -342,7 +343,9 @@ function playerCard(p) {
       ${sortedTeams.map(t => {
         let chipStyle = '';
         let chipStatus = t.status;
-        if (t.status === 'alive' && !t.gameInfo) chipStatus = 'upcoming';
+        // survived = won their game (green check). alive/upcoming = hasn't played yet (gray).
+        if (t.status === 'alive' && t.gameInfo && (t.gameInfo.includes('Won') || t.gameInfo.includes('Abduction'))) chipStatus = 'survived';
+        else if (t.status === 'alive') chipStatus = 'upcoming';
         // Dynamic background for live games based on cover margin
         if (t.status === 'playing' && t.margin != null) {
           const m = Math.max(-15, Math.min(15, t.margin));
@@ -369,7 +372,7 @@ function playerCard(p) {
         const spreadClass = (!spreadStyle && spread) ? (spread.startsWith('-') ? 'fav' : spread.startsWith('+') ? 'dog' : '') : '';
         const vsLine = t.opponent ? `vs ${esc(t.opponent)}` : '';
         return `<div class="team-chip ${chipStatus}" ${chipStyle}>
-          <div class="chip-dot"${t.status === 'playing' && t.margin != null ? ` style="background:currentColor"` : ''}></div>
+          ${chipStatus === 'survived' ? '<span class="chip-check">&#10003;</span>' : `<div class="chip-dot"${t.status === 'playing' && t.margin != null ? ' style="background:currentColor"' : ''}></div>`}
           <div class="chip-main">
             <span class="chip-team">${esc(t.name)}</span>
             ${vsLine ? `<div class="chip-vs">${vsLine}</div>` : ''}
