@@ -420,7 +420,11 @@ function checkCover(teamScore, oppScore, spreadStr) {
 
 function getSurvivalStatus(teamScore, oppScore, spreadStr) {
   const check = checkCover(teamScore, oppScore, spreadStr);
-  if (!check) return { survived: null, reason: '' };
+  if (!check) {
+    // No spread data (play-in games) — winners survive, losers eliminated
+    if (teamScore != null && oppScore != null && teamScore > oppScore) return { survived: true, reason: 'Won' };
+    return { survived: null, reason: '' };
+  }
   if (check.won) {
     return { survived: true, reason: check.covered ? 'Won & covered' : 'Won (didn\'t cover)' };
   }
@@ -440,17 +444,22 @@ function buildStandings(allGames, rosterPlayers) {
   
   // Build team→game lookup for spread/opponent/seed/time data
   const teamGameInfo = new Map(); // norm(team) -> { spread, opponent, seed, opponentSeed, time, section }
+  // Build team→game lookup — first-round games take priority over play-in games
+  // (play-ins lack spreads/seeds from the sheet and would clobber good data)
   for (const g of allGames) {
     const t1n = norm(g.team1.team), t2n = norm(g.team2.team);
-    teamGameInfo.set(t1n, { spread: g.team1.spread, opponent: g.team2.team, seed: g.team1.seed, opponentSeed: g.team2.seed, time: g.statusDetail, section: g.section, opponentOwner: g.team2.owner });
-    teamGameInfo.set(t2n, { spread: g.team2.spread, opponent: g.team1.team, seed: g.team2.seed, opponentSeed: g.team1.seed, time: g.statusDetail, section: g.section, opponentOwner: g.team1.owner });
-    // Also add aliases so roster names can find game data
-    for (const [mapKey] of [[t1n, g.team1], [t2n, g.team2]]) {
+    const t1data = { spread: g.team1.spread, opponent: g.team2.team, seed: g.team1.seed, opponentSeed: g.team2.seed, time: g.statusDetail, section: g.section, opponentOwner: g.team2.owner };
+    const t2data = { spread: g.team2.spread, opponent: g.team1.team, seed: g.team2.seed, opponentSeed: g.team1.seed, time: g.statusDetail, section: g.section, opponentOwner: g.team1.owner };
+    // Only set if no existing entry with spread data (prevents play-in from clobbering first-round)
+    if (!teamGameInfo.has(t1n) || !teamGameInfo.get(t1n).spread) teamGameInfo.set(t1n, t1data);
+    if (!teamGameInfo.has(t2n) || !teamGameInfo.get(t2n).spread) teamGameInfo.set(t2n, t2data);
+    // Populate aliases
+    for (const [mapKey] of [[t1n], [t2n]]) {
       const group = getAliasGroup(mapKey);
       if (group && ALIASES[group]) {
         const val = teamGameInfo.get(mapKey);
-        ALIASES[group].forEach(a => { if (!teamGameInfo.has(norm(a))) teamGameInfo.set(norm(a), val); });
-        if (!teamGameInfo.has(norm(group))) teamGameInfo.set(norm(group), val);
+        ALIASES[group].forEach(a => { if (!teamGameInfo.has(norm(a)) || !teamGameInfo.get(norm(a)).spread) teamGameInfo.set(norm(a), val); });
+        if (!teamGameInfo.has(norm(group)) || !teamGameInfo.get(norm(group)).spread) teamGameInfo.set(norm(group), val);
       }
     }
   }
