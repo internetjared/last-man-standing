@@ -436,8 +436,15 @@ function buildStandings(allGames, rosterPlayers) {
   const eliminated = new Map(); // norm(team) -> reason
   const playing = new Map(); // norm(team) -> { info, covering, margin }
   const survived = new Map(); // norm(team) -> reason (won or abduction)
-  // Track abductions: norm(loserTeam) -> winnerTeamName (loser's owner inherits the winner's team)
   const abductions = new Map();
+  
+  // Build team→game lookup for spread/opponent/seed/time data
+  const teamGameInfo = new Map(); // norm(team) -> { spread, opponent, seed, opponentSeed, time, section }
+  for (const g of allGames) {
+    const t1n = norm(g.team1.team), t2n = norm(g.team2.team);
+    teamGameInfo.set(t1n, { spread: g.team1.spread, opponent: g.team2.team, seed: g.team1.seed, opponentSeed: g.team2.seed, time: g.statusDetail, section: g.section, opponentOwner: g.team2.owner });
+    teamGameInfo.set(t2n, { spread: g.team2.spread, opponent: g.team1.team, seed: g.team2.seed, opponentSeed: g.team1.seed, time: g.statusDetail, section: g.section, opponentOwner: g.team1.owner });
+  }
   
   for (const g of allGames) {
     if (g.isFinal) {
@@ -491,15 +498,15 @@ function buildStandings(allGames, rosterPlayers) {
         const aElim = isEliminated(optA.trim(), eliminated);
         const bElim = isEliminated(optB.trim(), eliminated);
         if (aElim && !bElim) {
-          return resolveTeamStatus(optB.trim(), eliminated, playing, survived, abductions, null);
+          return resolveTeamStatus(optB.trim(), eliminated, playing, survived, abductions, null, teamGameInfo);
         }
         if (bElim && !aElim) {
-          return resolveTeamStatus(optA.trim(), eliminated, playing, survived, abductions, null);
+          return resolveTeamStatus(optA.trim(), eliminated, playing, survived, abductions, null, teamGameInfo);
         }
         return { name: teamName, status: 'alive', gameInfo: 'Play-in pending' };
       }
 
-      return resolveTeamStatus(teamName, eliminated, playing, survived, abductions, null);
+      return resolveTeamStatus(teamName, eliminated, playing, survived, abductions, null, teamGameInfo);
     });
 
     const alive = teamDetails.filter(t => t.status !== 'eliminated').length;
@@ -521,29 +528,42 @@ function isEliminated(teamName, eliminatedMap) {
   return false;
 }
 
-function resolveTeamStatus(teamName, eliminated, playing, survived, abductions, extraInfo) {
+function resolveTeamStatus(teamName, eliminated, playing, survived, abductions, extraInfo, teamGameInfo) {
+  // Look up game context for this team
+  const gi = findTeamGameInfo(teamName, teamGameInfo);
+  const gameCtx = gi ? { spread: gi.spread, opponent: gi.opponent, seed: gi.seed, opponentSeed: gi.opponentSeed, time: gi.time, section: gi.section, opponentOwner: gi.opponentOwner } : {};
+
   for (const [key, info] of eliminated) {
     if (teamsMatch(teamName, key)) {
-      return { name: teamName, status: 'eliminated', gameInfo: info };
+      return { name: teamName, status: 'eliminated', gameInfo: info, ...gameCtx };
     }
   }
   for (const [key, data] of playing) {
     if (teamsMatch(teamName, key)) {
-      return { name: teamName, status: 'playing', gameInfo: data.info, covering: data.covering, margin: data.margin };
+      return { name: teamName, status: 'playing', gameInfo: data.info, covering: data.covering, margin: data.margin, ...gameCtx };
     }
   }
   for (const [key, info] of survived) {
     if (teamsMatch(teamName, key)) {
-      // Check if this team was abducted (lost but covered → now riding the winner)
       const abductedTo = abductions ? abductions.get(key) : null;
       const displayName = abductedTo || teamName;
       const gameInfo = abductedTo
         ? `${info} → now riding ${abductedTo}`
         : (extraInfo ? `${extraInfo} · ${info}` : info);
-      return { name: displayName, status: 'alive', gameInfo, abductedFrom: abductedTo ? teamName : null };
+      return { name: displayName, status: 'alive', gameInfo, abductedFrom: abductedTo ? teamName : null, ...gameCtx };
     }
   }
-  return { name: teamName, status: 'alive', gameInfo: extraInfo };
+  return { name: teamName, status: 'alive', gameInfo: extraInfo, ...gameCtx };
+}
+
+function findTeamGameInfo(teamName, teamGameInfo) {
+  if (!teamGameInfo) return null;
+  const n = norm(teamName);
+  if (teamGameInfo.has(n)) return teamGameInfo.get(n);
+  for (const [key, val] of teamGameInfo) {
+    if (teamsMatch(teamName, key)) return val;
+  }
+  return null;
 }
 
 // --- Bracket Builder ---

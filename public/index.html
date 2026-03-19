@@ -99,24 +99,34 @@ html { overscroll-behavior-y: none; }
 .alive-count.c4,.alive-count.c3 { background: var(--green-bg); color: var(--green); }
 .alive-count.c2,.alive-count.c1 { background: var(--yellow-bg); color: var(--yellow); }
 .alive-count.c0 { background: var(--red-bg); color: var(--red); }
-.team-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.team-list { display: flex; flex-direction: column; gap: 6px; }
 .team-chip {
-  display: flex; align-items: center; padding: 7px 10px;
-  border-radius: 8px; font-size: 12px; font-weight: 600; gap: 6px;
+  display: flex; align-items: center; padding: 10px 12px;
+  border-radius: 10px; font-size: 13px; font-weight: 600; gap: 8px;
 }
 .team-chip.alive { background: var(--green-bg); color: var(--green); }
-.team-chip.eliminated { background: var(--red-bg); color: var(--red); text-decoration: line-through; opacity: 0.7; }
-.team-chip.upcoming { background: rgba(107,107,128,0.1); color: var(--dim); }
+.team-chip.eliminated { background: var(--red-bg); color: var(--red); opacity: 0.7; }
+.team-chip.eliminated .chip-team { text-decoration: line-through; }
+.team-chip.upcoming { background: rgba(107,107,128,0.08); color: var(--dim); }
 .team-chip.playing { transition: background 1s ease, color 0.5s ease; }
 .chip-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .alive .chip-dot { background: var(--green); }
 .eliminated .chip-dot { background: var(--red); }
 .upcoming .chip-dot { background: var(--dim); }
 .playing .chip-dot { background: var(--yellow); animation: pulse 2s infinite; }
-.chip-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-.alive .chip-dot { background: var(--green); }
-.eliminated .chip-dot { background: var(--red); }
-.playing .chip-dot { background: var(--yellow); }
+.chip-main { flex: 1; min-width: 0; }
+.chip-top { display: flex; align-items: center; gap: 6px; }
+.chip-team { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip-seed { font-size: 10px; opacity: 0.6; font-weight: 500; }
+.chip-vs { font-size: 10px; font-weight: 400; opacity: 0.7; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip-vs .opp-owner { font-weight: 600; opacity: 0.6; }
+.chip-spread {
+  font-size: 16px; font-weight: 800; letter-spacing: -0.5px;
+  flex-shrink: 0; text-align: right; min-width: 44px;
+}
+.chip-spread.fav { color: var(--red); }
+.chip-spread.dog { color: var(--green); }
+.upcoming .chip-spread { opacity: 0.7; }
 .chip-info { font-size: 10px; font-weight: 400; opacity: 0.8; margin-top: 2px; }
 
 /* Game Cards */
@@ -332,26 +342,33 @@ function playerCard(p) {
       ${sortedTeams.map(t => {
         let chipStyle = '';
         let chipStatus = t.status;
-        // Teams that are alive but not playing yet → gray "upcoming"
         if (t.status === 'alive' && !t.gameInfo) chipStatus = 'upcoming';
-        // Dynamic gradient for live games based on cover margin
+        // Dynamic gradient for live games
         if (t.status === 'playing' && t.margin != null) {
-          const m = Math.max(-15, Math.min(15, t.margin)); // clamp
-          const pct = (m + 15) / 30; // 0 = deep red, 0.5 = neutral, 1 = deep green
+          const m = Math.max(-15, Math.min(15, t.margin));
+          const pct = (m + 15) / 30;
           const r = Math.round(239 - pct * 200);
           const g = Math.round(68 + pct * 129);
           const b = Math.round(68 - pct * 20);
-          const alpha = 0.08 + Math.abs(m) / 15 * 0.12; // stronger tint further from zero
+          const alpha = 0.08 + Math.abs(m) / 15 * 0.12;
           chipStyle = `style="background:rgba(${r},${g},${b},${alpha}); color:rgb(${r},${g},${b})"`;
         } else if (t.status === 'playing') {
           chipStyle = `style="background:var(--yellow-bg); color:var(--yellow)"`;
         }
+        const spread = t.spread || '';
+        const spreadClass = spread.startsWith('-') ? 'fav' : spread.startsWith('+') ? 'dog' : '';
+        const vsLine = t.opponent ? `vs ${t.opponentSeed ? '(' + esc(t.opponentSeed) + ') ' : ''}${esc(t.opponent)}${t.opponentOwner ? ' <span class="opp-owner">' + esc(t.opponentOwner) + '</span>' : ''}` : '';
         return `<div class="team-chip ${chipStatus}${t.abductedFrom ? ' abducted' : ''}" ${chipStyle}>
           <div class="chip-dot"${t.status === 'playing' && t.margin != null ? ` style="background:currentColor"` : ''}></div>
-          <div>
-            <div>${esc(t.name)}${t.abductedFrom ? ` <span style="font-size:9px;opacity:0.6">(was ${esc(t.abductedFrom)})</span>` : ''}</div>
-            ${t.gameInfo ? `<div class="chip-info">${esc(t.gameInfo)}</div>` : ''}
+          <div class="chip-main">
+            <div class="chip-top">
+              <span class="chip-team">${esc(t.name)}${t.abductedFrom ? ` <span style="font-size:9px;opacity:0.6">(was ${esc(t.abductedFrom)})</span>` : ''}</span>
+              ${t.seed ? `<span class="chip-seed">(${esc(t.seed)})</span>` : ''}
+            </div>
+            ${vsLine ? `<div class="chip-vs">${vsLine}</div>` : ''}
+            ${t.status === 'playing' && t.gameInfo ? `<div class="chip-info">${esc(t.gameInfo)}</div>` : ''}
           </div>
+          ${spread ? `<div class="chip-spread ${spreadClass}">${esc(spread)}</div>` : ''}
         </div>`;
       }).join('')}
     </div>
