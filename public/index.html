@@ -931,7 +931,7 @@ function renderGameDetail(g) {
 }
 
 function checkAbductions(standings) {
-  const seen = JSON.parse(localStorage.getItem('lms_abd_seen') || '[]');
+  const seen = JSON.parse(localStorage.getItem('lms_abd_seen_v2') || '[]');
   const newAbductions = [];
   for (const p of standings) {
     for (const t of p.teams) {
@@ -945,7 +945,7 @@ function checkAbductions(standings) {
     }
   }
   if (newAbductions.length) {
-    localStorage.setItem('lms_abd_seen', JSON.stringify(seen));
+    localStorage.setItem('lms_abd_seen_v2', JSON.stringify(seen));
     showAbductionBanners(newAbductions);
   }
 }
