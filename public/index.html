@@ -186,8 +186,10 @@ html { overscroll-behavior-y: none; }
 .game-card.final .team-row.winner .team-name { color: var(--green); }
 .game-card.final .team-row.stolen-winner .team-name { color: rgba(74,222,128,0.5); }
 .game-card.final .team-row.stolen-winner { opacity: 0.7; }
+.game-card.final .team-row.abductor { opacity: 1; }
+.game-card.final .team-row.abductor .team-name { color: var(--yellow); }
 .survival-tag.stolen-tag { background: rgba(74,222,128,0.15); color: rgba(74,222,128,0.6); }
-.survival-tag.abduction { background: rgba(250,204,21,0.08); color: rgba(250,204,21,0.7); }
+.survival-tag.abduction { background: var(--yellow-bg); color: var(--yellow); }
 
 .game-status {
   font-size: 11px; font-weight: 600; text-transform: uppercase;
@@ -671,7 +673,7 @@ function teamRow(t, hasScores, isFinal, isLive) {
       survivalTag = '<span class="survival-tag safe">W</span>';
     } else if (!t.won && t.survived === true) {
       // South Florida scenario: lost the game but covered the spread — abductor
-      winClass = ' loser';
+      winClass = ' abductor';
       survivalTag = '<span class="survival-tag abduction">ABD \u{1F3F4}\u200D\u2620\uFE0F</span>';
     } else if (t.won === false) {
       winClass = ' loser';
