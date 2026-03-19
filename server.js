@@ -482,10 +482,10 @@ function buildStandings(allGames, rosterPlayers) {
         const bElim = isEliminated(optB.trim(), eliminated);
         // If one is eliminated, the other won the play-in
         if (aElim && !bElim) {
-          return resolveTeamStatus(optB.trim(), eliminated, playing, survived, `Won play-in`);
+          return resolveTeamStatus(optB.trim(), eliminated, playing, survived, null);
         }
         if (bElim && !aElim) {
-          return resolveTeamStatus(optA.trim(), eliminated, playing, survived, `Won play-in`);
+          return resolveTeamStatus(optA.trim(), eliminated, playing, survived, null);
         }
         // Both still playing or game not found — show combined
         return { name: teamName, status: 'alive', gameInfo: 'Play-in pending' };
