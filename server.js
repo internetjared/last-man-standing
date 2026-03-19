@@ -579,7 +579,7 @@ function isEliminated(teamName, eliminatedMap) {
 function resolveTeamStatus(teamName, eliminated, playing, survived, abductions, extraInfo, teamGameInfo) {
   // Look up game context for this team
   const gi = findTeamGameInfo(teamName, teamGameInfo);
-  const gameCtx = gi ? { spread: gi.spread, opponent: gi.opponent, seed: gi.seed, opponentSeed: gi.opponentSeed, time: gi.time, section: gi.section, opponentOwner: gi.opponentOwner } : {};
+  const gameCtx = gi ? { spread: gi.spread, opponent: gi.opponent, seed: gi.seed, opponentSeed: gi.opponentSeed, time: gi.time, section: gi.section, opponentOwner: gi.opponentOwner, espnId: gi.espnId || null, gameIsLive: gi.gameIsLive || false, gameIsFinal: gi.gameIsFinal || false } : {};
 
   for (const [key, info] of eliminated) {
     if (teamsMatch(teamName, key)) {
