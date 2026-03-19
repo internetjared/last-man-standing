@@ -640,7 +640,18 @@ function buildBracketData(games, rosterPlayers) {
 }
 
 // --- API ---
-app.use(express.static(path.join(__dirname, 'public')));
+const fs = require('fs');
+const publicDir = path.join(__dirname, 'public');
+
+// Explicit static file routes (Vercel serverless doesn't serve express.static for binary files)
+app.get('/icon-192.png', (req, res) => {
+  res.type('image/png').send(fs.readFileSync(path.join(publicDir, 'icon-192.png')));
+});
+app.get('/icon-512.png', (req, res) => {
+  res.type('image/png').send(fs.readFileSync(path.join(publicDir, 'icon-512.png')));
+});
+
+app.use(express.static(publicDir));
 
 app.get('/api/data', async (req, res) => {
   try {
