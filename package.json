@@ -1,0 +1,12 @@
+{
+  "name": "march-madness-lms",
+  "version": "1.0.0",
+  "description": "March Madness Last Man Standing Tracker",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

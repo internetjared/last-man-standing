@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0f">
+<title>Last Man Standing</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0a0a0f;
+  --card: #15151f;
+  --card-border: #1e1e2e;
+  --text: #e8e8ed;
+  --dim: #6b6b80;
+  --green: #22c55e;
+  --green-bg: rgba(34,197,94,0.1);
+  --red: #ef4444;
+  --red-bg: rgba(239,68,68,0.1);
+  --yellow: #eab308;
+  --yellow-bg: rgba(234,179,8,0.1);
+  --accent: #6366f1;
+  --accent-bg: rgba(99,102,241,0.1);
+}
+
+body {
+  background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  min-height: 100vh; -webkit-font-smoothing: antialiased;
+}
+
+/* Header */
+.header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(10,10,15,0.92);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--card-border);
+  padding: 14px 16px;
+}
+.header-inner {
+  max-width: 600px; margin: 0 auto;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.header h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+.header .sub { font-size: 11px; color: var(--dim); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+.header .time { font-size: 11px; color: var(--dim); text-align: right; }
+
+.live-dot {
+  display: inline-block; width: 6px; height: 6px;
+  background: var(--green); border-radius: 50%; margin-right: 4px;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* Tabs */
+.tabs {
+  display: flex; max-width: 600px; margin: 0 auto; padding: 8px 16px 0; gap: 4px;
+}
+.tab {
+  flex: 1; padding: 10px 8px; text-align: center;
+  font-size: 13px; font-weight: 600; color: var(--dim);
+  background: none; border: none; border-bottom: 2px solid transparent;
+  cursor: pointer; transition: all 0.2s;
+}
+.tab.active { color: var(--text); border-bottom-color: var(--accent); }
+.tab .badge {
+  display: inline-block; background: var(--accent); color: white;
+  font-size: 10px; padding: 1px 5px; border-radius: 8px; margin-left: 4px; font-weight: 700;
+}
+
+.content { max-width: 600px; margin: 0 auto; padding: 12px 16px 80px; }
+.view { display: none; }
+.view.active { display: block; }
+
+/* Player Cards */
+.player-card {
+  background: var(--card); border: 1px solid var(--card-border);
+  border-radius: 12px; padding: 14px; margin-bottom: 8px;
+}
+.player-card.eliminated { opacity: 0.45; }
+.player-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
+}
+.player-rank {
+  width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; font-size: 13px; font-weight: 700;
+  background: var(--accent-bg); color: var(--accent); margin-right: 10px; flex-shrink: 0;
+}
+.player-card.eliminated .player-rank { background: var(--red-bg); color: var(--red); }
+.player-name { font-size: 16px; font-weight: 700; flex: 1; }
+.alive-count {
+  font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 20px;
+}
+.alive-count.c4,.alive-count.c3 { background: var(--green-bg); color: var(--green); }
+.alive-count.c2,.alive-count.c1 { background: var(--yellow-bg); color: var(--yellow); }
+.alive-count.c0 { background: var(--red-bg); color: var(--red); }
+.team-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.team-chip {
+  display: flex; align-items: center; padding: 7px 10px;
+  border-radius: 8px; font-size: 12px; font-weight: 600; gap: 6px;
+}
+.team-chip.alive { background: var(--green-bg); color: var(--green); }
+.team-chip.eliminated { background: var(--red-bg); color: var(--red); text-decoration: line-through; opacity: 0.7; }
+.team-chip.playing { background: var(--yellow-bg); color: var(--yellow); }
+.chip-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.alive .chip-dot { background: var(--green); }
+.eliminated .chip-dot { background: var(--red); }
+.playing .chip-dot { background: var(--yellow); }
+.chip-info { font-size: 10px; font-weight: 400; opacity: 0.8; margin-top: 2px; }
+
+/* Game Cards */
+.section-label {
+  font-size: 13px; font-weight: 700; color: var(--dim);
+  text-transform: uppercase; letter-spacing: 0.8px; margin: 16px 0 10px;
+}
+.section-label:first-child { margin-top: 4px; }
+
+.game-card {
+  background: var(--card); border: 1px solid var(--card-border);
+  border-radius: 12px; margin-bottom: 8px; overflow: hidden;
+}
+.game-card.live { border-color: var(--yellow); box-shadow: 0 0 20px rgba(234,179,8,0.08); }
+.game-card.final .team-row.loser { opacity: 0.5; }
+.game-card.final .team-row.winner .team-name { color: var(--green); }
+
+.game-status {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.5px; padding: 8px 14px 0; color: var(--dim);
+}
+.game-status.live { color: var(--yellow); }
+
+.team-row {
+  display: flex; align-items: center; padding: 8px 14px; gap: 8px;
+}
+.team-row + .team-row { padding-top: 0; }
+
+.team-seed {
+  width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+  background: var(--accent-bg); color: var(--accent);
+  border-radius: 6px; font-size: 11px; font-weight: 700; flex-shrink: 0;
+}
+.team-name { flex: 1; font-size: 14px; font-weight: 600; }
+.owner-tag {
+  font-size: 10px; font-weight: 600; color: var(--accent);
+  background: var(--accent-bg); padding: 1px 6px; border-radius: 4px;
+}
+.team-spread {
+  font-size: 12px; font-weight: 700; min-width: 36px; text-align: right;
+}
+.team-spread.fav { color: var(--red); }
+.team-spread.dog { color: var(--green); }
+.team-score {
+  font-size: 18px; font-weight: 700; min-width: 36px; text-align: right;
+}
+
+.survival-tag, .cover-tag {
+  font-size: 9px; font-weight: 800; padding: 2px 5px; border-radius: 4px;
+  letter-spacing: 0.5px; text-transform: uppercase; flex-shrink: 0;
+}
+.survival-tag.safe { background: var(--green-bg); color: var(--green); }
+.survival-tag.abduction { background: var(--yellow-bg); color: var(--yellow); }
+.survival-tag.elim { background: var(--red-bg); color: var(--red); }
+.cover-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+.cover-dot.covering { background: var(--green); }
+.cover-dot.not-covering { background: var(--red); }
+
+.game-footer {
+  padding: 4px 14px 8px; font-size: 11px; color: var(--dim);
+}
+
+/* Bracket */
+.bracket-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 0 0 16px; }
+.region-header {
+  font-size: 13px; font-weight: 800; color: var(--text); text-transform: uppercase;
+  letter-spacing: 1.2px; padding: 12px 8px 6px; border-bottom: 2px solid var(--accent);
+  margin-bottom: 4px;
+}
+.region-bracket { display: flex; gap: 0; min-width: fit-content; align-items: stretch; margin-bottom: 20px; }
+.bracket-round { display: flex; flex-direction: column; min-width: 155px; justify-content: space-around; }
+.round-label {
+  font-size: 9px; font-weight: 700; color: var(--dim); text-transform: uppercase;
+  letter-spacing: 0.8px; text-align: center; padding: 4px 4px 4px; white-space: nowrap;
+}
+.bracket-game {
+  display: flex; flex-direction: column; justify-content: center;
+  flex: 1; padding: 2px 4px;
+}
+.bracket-slot {
+  background: var(--card); border: 1px solid var(--card-border);
+  border-radius: 6px; overflow: hidden; margin: 2px 0;
+}
+.bracket-slot.live { border-color: var(--yellow); }
+.bracket-team {
+  display: flex; align-items: center; padding: 4px 6px; gap: 3px;
+  font-size: 11px; font-weight: 600; min-height: 26px;
+}
+.bracket-team + .bracket-team { border-top: 1px solid var(--card-border); }
+.bracket-team.winner { color: var(--green); }
+.bracket-team.loser { opacity: 0.4; }
+.bracket-team.abducted .bracket-owner { background: var(--yellow-bg); color: var(--yellow); }
+.bracket-seed {
+  width: 16px; height: 16px; display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; color: var(--accent); background: var(--accent-bg);
+  border-radius: 4px; flex-shrink: 0;
+}
+.bracket-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bracket-owner {
+  font-size: 8px; font-weight: 700; color: var(--accent); background: var(--accent-bg);
+  padding: 1px 4px; border-radius: 3px; flex-shrink: 0; max-width: 50px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.bracket-score { font-size: 12px; font-weight: 700; min-width: 20px; text-align: right; flex-shrink: 0; }
+.bracket-tbd { color: var(--dim); font-style: italic; font-size: 10px; }
+.bracket-connector { width: 10px; display: flex; flex-direction: column; }
+.ff-section {
+  margin-top: 8px; padding-top: 8px;
+  border-top: 2px solid var(--accent);
+}
+.ff-header {
+  font-size: 13px; font-weight: 800; color: var(--text); text-transform: uppercase;
+  letter-spacing: 1.2px; padding: 0 8px 8px; text-align: center;
+}
+.ff-games { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.ff-game { width: 200px; }
+.ff-label { font-size: 9px; color: var(--dim); text-align: center; padding-bottom: 2px; }
+
+.empty { text-align: center; padding: 40px 20px; color: var(--dim); font-size: 14px; }
+.loading { display: flex; align-items: center; justify-content: center; padding: 60px 20px; color: var(--dim); }
+.spinner {
+  width: 20px; height: 20px; border: 2px solid var(--card-border);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin 0.8s linear infinite; margin-right: 10px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div>
+      <h1>Last Man Standing</h1>
+      <div class="sub">March Madness 2026</div>
+    </div>
+    <div class="time" id="clock">Loading...</div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" data-tab="standings">Standings</button>
+  <button class="tab" data-tab="bracket">Bracket</button>
+  <button class="tab" data-tab="games">Games <span class="badge" id="liveBadge" style="display:none">0</span></button>
+</div>
+
+<div class="content">
+  <div id="standingsView" class="view active">
+    <div class="loading"><div class="spinner"></div>Loading...</div>
+  </div>
+  <div id="bracketView" class="view"></div>
+  <div id="gamesView" class="view"></div>
+</div>
+
+<script>
+let currentTab = 'standings';
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  currentTab = name;
+  location.hash = name;
+  document.getElementById(currentTab + 'View').classList.add('active');
+}
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+});
+
+// Restore tab from URL hash on load
+if (location.hash) {
+  const h = location.hash.slice(1);
+  if (document.getElementById(h + 'View')) switchTab(h);
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function renderStandings(standings) {
+  const el = document.getElementById('standingsView');
+  if (!standings?.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
+
+  el.innerHTML = standings.map((p, i) => {
+    const dead = p.alive === 0;
+    const sortedTeams = [...p.teams].sort((a, b) => {
+      const o = { playing: 0, alive: 1, eliminated: 2 };
+      return o[a.status] - o[b.status];
+    });
+    return `<div class="player-card${dead ? ' eliminated' : ''}">
+      <div class="player-header">
+        <div class="player-rank">${i + 1}</div>
+        <div class="player-name">${esc(p.name)}</div>
+        <div class="alive-count c${p.alive}">${p.alive}/4</div>
+      </div>
+      <div class="team-list">
+        ${sortedTeams.map(t => `<div class="team-chip ${t.status}">
+          <div class="chip-dot"></div>
+          <div>
+            <div>${esc(t.name)}</div>
+            ${t.gameInfo ? `<div class="chip-info">${esc(t.gameInfo)}</div>` : ''}
+          </div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderGames(data) {
+  const el = document.getElementById('gamesView');
+  const { live, upcoming, completed } = data;
+  let html = '';
+
+  if (live?.length) {
+    html += '<div class="section-label"><span class="live-dot"></span> Live</div>';
+    html += live.map(g => gameCard(g, 'live')).join('');
+  }
+  if (upcoming?.length) {
+    // Group by section (Thursday / Friday)
+    const thu = upcoming.filter(g => g.section === 'Thursday');
+    const fri = upcoming.filter(g => g.section === 'Friday');
+    if (thu.length) {
+      html += '<div class="section-label">Thursday</div>';
+      html += thu.map(g => gameCard(g, 'upcoming')).join('');
+    }
+    if (fri.length) {
+      html += '<div class="section-label">Friday</div>';
+      html += fri.map(g => gameCard(g, 'upcoming')).join('');
+    }
+  }
+  if (completed?.length) {
+    html += '<div class="section-label">Completed</div>';
+    html += completed.map(g => gameCard(g, 'final')).join('');
+  }
+
+  el.innerHTML = html || '<div class="empty">No games yet</div>';
+
+  const badge = document.getElementById('liveBadge');
+  if (live?.length) { badge.style.display = 'inline-block'; badge.textContent = live.length; }
+  else badge.style.display = 'none';
+}
+
+function gameCard(g, type) {
+  const isLive = type === 'live';
+  const isFinal = type === 'final';
+  const hasScores = g.team1.score != null && g.team2.score != null && (isLive || isFinal);
+
+  let statusText = '';
+  if (isLive) statusText = g.statusDetail || 'In Progress';
+  else if (isFinal) statusText = 'Final';
+  else if (g.statusDetail) {
+    // Extract just the time portion (e.g., "3/19 - 6:50 PM EDT" → "6:50 PM ET")
+    const m = g.statusDetail.match(/(\d{1,2}:\d{2}\s*[AP]M)\s*(E[DS]T)?/i);
+    statusText = m ? m[1] + ' ET' : g.statusDetail;
+  }
+
+  return `<div class="game-card ${type}">
+    ${statusText ? `<div class="game-status ${type}">${isLive ? '<span class="live-dot"></span>' : ''}${esc(statusText)}</div>` : ''}
+    ${teamRow(g.team1, hasScores, isFinal, isLive)}
+    ${teamRow(g.team2, hasScores, isFinal, isLive)}
+  </div>`;
+}
+
+function teamRow(t, hasScores, isFinal, isLive) {
+  const spread = t.spread || '';
+  const spreadClass = spread.startsWith('-') ? 'fav' : spread.startsWith('+') ? 'dog' : '';
+  let winClass = '';
+  let survivalTag = '';
+  
+  if (isFinal) {
+    if (t.survived === false) {
+      winClass = ' loser';
+      survivalTag = '<span class="survival-tag elim">OUT</span>';
+    } else if (t.survived === true && t.won) {
+      winClass = ' winner';
+      survivalTag = '<span class="survival-tag safe">W</span>';
+    } else if (t.survived === true && !t.won) {
+      winClass = ' winner';
+      survivalTag = '<span class="survival-tag abduction">ABD</span>';
+    } else if (t.won === true) {
+      winClass = ' winner';
+    } else if (t.won === false) {
+      winClass = ' loser';
+    }
+  }
+  
+  // Live covering indicator
+  let coverTag = '';
+  if (isLive && t.covering === true) {
+    coverTag = '<span class="cover-dot covering"></span>';
+  } else if (isLive && t.covering === false) {
+    coverTag = '<span class="cover-dot not-covering"></span>';
+  }
+
+  return `<div class="team-row${winClass}">
+    ${t.seed ? `<div class="team-seed">${esc(t.seed)}</div>` : '<div style="width:24px"></div>'}
+    <div class="team-name">${esc(t.team)}</div>
+    ${t.owner ? `<span class="owner-tag">${esc(t.owner)}</span>` : ''}
+    ${coverTag}${survivalTag}
+    ${spread ? `<div class="team-spread ${spreadClass}">${esc(spread)}</div>` : ''}
+    ${hasScores ? `<div class="team-score">${t.score}</div>` : ''}
+  </div>`;
+}
+
+function renderBracket(data) {
+  const el = document.getElementById('bracketView');
+  if (!data || !data.regions) { el.innerHTML = '<div class="empty">No bracket data</div>'; return; }
+
+  let html = '<div class="bracket-wrap">';
+
+  // Render each region
+  for (const regionName of ['East', 'West', 'South', 'Midwest']) {
+    const rounds = data.regions[regionName];
+    if (!rounds || rounds.length === 0) continue;
+
+    html += `<div class="region-header">${esc(regionName)} Region</div>`;
+    html += '<div class="region-bracket">';
+
+    rounds.forEach((round, ri) => {
+      html += '<div class="bracket-round">';
+      html += `<div class="round-label">${esc(round.name)}</div>`;
+
+      round.games.forEach(g => {
+        const hasScores = g.isFinal || g.isLive;
+        html += `<div class="bracket-game"><div class="bracket-slot${g.isLive ? ' live' : ''}">`;
+        html += bracketTeamRow(g.team1, g, hasScores);
+        html += bracketTeamRow(g.team2, g, hasScores);
+        html += '</div></div>';
+      });
+
+      html += '</div>';
+      if (ri < rounds.length - 1) html += '<div class="bracket-connector"></div>';
+    });
+
+    html += '</div>';
+  }
+
+  // Final Four + Championship
+  if (data.finalFour) {
+    html += '<div class="ff-section">';
+    html += '<div class="ff-header">Final Four</div>';
+    html += '<div class="ff-games">';
+    data.finalFour.forEach(g => {
+      const hasScores = g.isFinal || g.isLive;
+      html += `<div class="ff-game">`;
+      if (g.label) html += `<div class="ff-label">${esc(g.label)}</div>`;
+      html += `<div class="bracket-slot${g.isLive ? ' live' : ''}">`;
+      html += bracketTeamRow(g.team1, g, hasScores);
+      html += bracketTeamRow(g.team2, g, hasScores);
+      html += '</div></div>';
+    });
+    html += '</div>';
+
+    if (data.championship) {
+      html += '<div class="ff-header" style="padding-top:12px">Championship</div>';
+      html += '<div class="ff-games">';
+      const g = data.championship;
+      const hasScores = g.isFinal || g.isLive;
+      html += `<div class="ff-game"><div class="bracket-slot${g.isLive ? ' live' : ''}">`;
+      html += bracketTeamRow(g.team1, g, hasScores);
+      html += bracketTeamRow(g.team2, g, hasScores);
+      html += '</div></div></div>';
+    }
+    html += '</div>';
+  }
+
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function bracketTeamRow(t, game, hasScores) {
+  if (!t.name || t.name === 'TBD') {
+    return '<div class="bracket-team bracket-tbd">TBD</div>';
+  }
+
+  let cls = 'bracket-team';
+  if (game.isFinal && t.won === true) cls += ' winner';
+  if (game.isFinal && t.won === false) cls += ' loser';
+  if (t.abducted) cls += ' abducted';
+
+  const ownerName = t.owner || '';
+  const firstName = ownerName.split(' ')[0]; // Show first name only to save space
+
+  return `<div class="${cls}">
+    ${t.seed ? `<div class="bracket-seed">${esc(t.seed)}</div>` : ''}
+    <div class="bracket-name">${esc(t.name)}</div>
+    ${firstName ? `<span class="bracket-owner">${esc(firstName)}</span>` : ''}
+    ${hasScores && t.score != null ? `<div class="bracket-score">${t.score}</div>` : ''}
+  </div>`;
+}
+
+async function load() {
+  try {
+    const res = await fetch('/api/data');
+    if (!res.ok) throw new Error('fail');
+    const d = await res.json();
+    renderStandings(d.standings);
+    renderBracket(d.bracket);
+    renderGames(d.games);
+    document.getElementById('clock').innerHTML =
+      `<span class="live-dot"></span> ${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+  } catch (e) {
+    console.error(e);
+    document.getElementById('clock').textContent = 'Error';
+  }
+}
+
+load();
+setInterval(load, 30000);
+</script>
+</body>
+</html>
