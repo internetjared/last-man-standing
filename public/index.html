@@ -104,7 +104,13 @@ body {
 }
 .team-chip.alive { background: var(--green-bg); color: var(--green); }
 .team-chip.eliminated { background: var(--red-bg); color: var(--red); text-decoration: line-through; opacity: 0.7; }
-.team-chip.playing { background: var(--yellow-bg); color: var(--yellow); }
+.team-chip.upcoming { background: rgba(107,107,128,0.1); color: var(--dim); }
+.team-chip.playing { transition: background 1s ease, color 0.5s ease; }
+.chip-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.alive .chip-dot { background: var(--green); }
+.eliminated .chip-dot { background: var(--red); }
+.upcoming .chip-dot { background: var(--dim); }
+.playing .chip-dot { background: var(--yellow); animation: pulse 2s infinite; }
 .chip-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .alive .chip-dot { background: var(--green); }
 .eliminated .chip-dot { background: var(--red); }
@@ -312,8 +318,8 @@ function renderStandings(standings) {
 function playerCard(p) {
   const dead = p.alive === 0;
   const sortedTeams = [...p.teams].sort((a, b) => {
-    const o = { playing: 0, alive: 1, eliminated: 2 };
-    return o[a.status] - o[b.status];
+    const o = { playing: 0, alive: 1, upcoming: 2, eliminated: 3 };
+    return (o[a.status] ?? 2) - (o[b.status] ?? 2);
   });
   return `<div class="player-card${dead ? ' eliminated' : ''}">
     <div class="player-header">
@@ -321,13 +327,31 @@ function playerCard(p) {
       <div class="alive-count c${p.alive}">${p.alive}/4</div>
     </div>
     <div class="team-list">
-      ${sortedTeams.map(t => `<div class="team-chip ${t.status}${t.abductedFrom ? ' abducted' : ''}">
-        <div class="chip-dot"></div>
-        <div>
-          <div>${esc(t.name)}${t.abductedFrom ? ` <span style="font-size:9px;opacity:0.6">(was ${esc(t.abductedFrom)})</span>` : ''}</div>
-          ${t.gameInfo ? `<div class="chip-info">${esc(t.gameInfo)}</div>` : ''}
-        </div>
-      </div>`).join('')}
+      ${sortedTeams.map(t => {
+        let chipStyle = '';
+        let chipStatus = t.status;
+        // Teams that are alive but not playing yet → gray "upcoming"
+        if (t.status === 'alive' && !t.gameInfo) chipStatus = 'upcoming';
+        // Dynamic gradient for live games based on cover margin
+        if (t.status === 'playing' && t.margin != null) {
+          const m = Math.max(-15, Math.min(15, t.margin)); // clamp
+          const pct = (m + 15) / 30; // 0 = deep red, 0.5 = neutral, 1 = deep green
+          const r = Math.round(239 - pct * 200);
+          const g = Math.round(68 + pct * 129);
+          const b = Math.round(68 - pct * 20);
+          const alpha = 0.08 + Math.abs(m) / 15 * 0.12; // stronger tint further from zero
+          chipStyle = `style="background:rgba(${r},${g},${b},${alpha}); color:rgb(${r},${g},${b})"`;
+        } else if (t.status === 'playing') {
+          chipStyle = `style="background:var(--yellow-bg); color:var(--yellow)"`;
+        }
+        return `<div class="team-chip ${chipStatus}${t.abductedFrom ? ' abducted' : ''}" ${chipStyle}>
+          <div class="chip-dot"${t.status === 'playing' && t.margin != null ? ` style="background:currentColor"` : ''}></div>
+          <div>
+            <div>${esc(t.name)}${t.abductedFrom ? ` <span style="font-size:9px;opacity:0.6">(was ${esc(t.abductedFrom)})</span>` : ''}</div>
+            ${t.gameInfo ? `<div class="chip-info">${esc(t.gameInfo)}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
     </div>
   </div>`;
 }

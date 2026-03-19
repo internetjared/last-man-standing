@@ -434,7 +434,7 @@ function getSurvivalStatus(teamScore, oppScore, spreadStr) {
 // --- Build Standings ---
 function buildStandings(allGames, rosterPlayers) {
   const eliminated = new Map(); // norm(team) -> reason
-  const playing = new Map(); // norm(team) -> live info string
+  const playing = new Map(); // norm(team) -> { info, covering, margin }
   const survived = new Map(); // norm(team) -> reason (won or abduction)
   // Track abductions: norm(loserTeam) -> winnerTeamName (loser's owner inherits the winner's team)
   const abductions = new Map();
@@ -472,8 +472,13 @@ function buildStandings(allGames, rosterPlayers) {
       const t2live = checkCover(g.team2.score, g.team1.score, g.team2.spread);
       const t1tag = t1live ? (t1live.covered ? ' (covering)' : ' (not covering)') : '';
       const t2tag = t2live ? (t2live.covered ? ' (covering)' : ' (not covering)') : '';
-      playing.set(norm(g.team1.team), `${g.team1.score}-${g.team2.score}${t1tag} ${g.statusDetail}`);
-      playing.set(norm(g.team2.team), `${g.team2.score}-${g.team1.score}${t2tag} ${g.statusDetail}`);
+      const spread1 = parseFloat(g.team1.spread) || 0;
+      const spread2 = parseFloat(g.team2.spread) || 0;
+      const scoreDiff1 = g.team1.score - g.team2.score; // positive = winning
+      const margin1 = scoreDiff1 + spread1; // positive = covering
+      const margin2 = -scoreDiff1 + spread2;
+      playing.set(norm(g.team1.team), { info: `${g.team1.score}-${g.team2.score}${t1tag} ${g.statusDetail}`, covering: t1live ? t1live.covered : null, margin: margin1 });
+      playing.set(norm(g.team2.team), { info: `${g.team2.score}-${g.team1.score}${t2tag} ${g.statusDetail}`, covering: t2live ? t2live.covered : null, margin: margin2 });
     }
   }
 
@@ -522,9 +527,9 @@ function resolveTeamStatus(teamName, eliminated, playing, survived, abductions, 
       return { name: teamName, status: 'eliminated', gameInfo: info };
     }
   }
-  for (const [key, info] of playing) {
+  for (const [key, data] of playing) {
     if (teamsMatch(teamName, key)) {
-      return { name: teamName, status: 'playing', gameInfo: info };
+      return { name: teamName, status: 'playing', gameInfo: data.info, covering: data.covering, margin: data.margin };
     }
   }
   for (const [key, info] of survived) {
