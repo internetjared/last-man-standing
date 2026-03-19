@@ -14,6 +14,25 @@
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+.abd-banner {
+  pointer-events: auto;
+  display: flex; align-items: center; justify-content: space-between;
+  margin: 8px 12px 0; padding: 12px 14px; gap: 10px;
+  background: linear-gradient(135deg, rgba(234,179,8,0.15), rgba(234,179,8,0.05));
+  border: 1px solid rgba(234,179,8,0.3); border-radius: 12px;
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  animation: abdSlideIn 0.4s cubic-bezier(0.16,1,0.3,1) both;
+  transition: opacity 0.3s, transform 0.3s;
+}
+.abd-banner.abd-dismiss { opacity: 0; transform: translateY(-100%); pointer-events: none; }
+.abd-banner-content { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.abd-banner-icon { font-size: 20px; flex-shrink: 0; }
+.abd-banner-content { padding-left: 4px; }
+.abd-banner-text { font-size: 13px; font-weight: 500; color: var(--yellow); line-height: 1.3; }
+.abd-banner-sub { font-size: 11px; color: rgba(234,179,8,0.6); line-height: 1.3; }
+.abd-banner-close { background: none; border: none; color: rgba(234,179,8,0.5); font-size: 20px; cursor: pointer; padding: 4px 2px; flex-shrink: 0; line-height: 1; }
+@keyframes abdSlideIn { from { opacity: 0; transform: translateY(-100%); } to { opacity: 1; transform: translateY(0); } }
+
 :root {
   --bg: #0a0a0f;
   --card: #15151f;
@@ -906,6 +925,59 @@ function renderGameDetail(g) {
   `;
 }
 
+function checkAbductions(standings) {
+  const seen = JSON.parse(localStorage.getItem('lms_abd_seen') || '[]');
+  const newAbductions = [];
+  for (const p of standings) {
+    for (const t of p.teams) {
+      if (t.abductedFrom) {
+        const key = `${p.name}:${t.abductedFrom}:${t.name}`;
+        if (!seen.includes(key)) {
+          newAbductions.push({ player: p.name, from: t.abductedFrom, to: t.name });
+          seen.push(key);
+        }
+      }
+    }
+  }
+  if (newAbductions.length) {
+    localStorage.setItem('lms_abd_seen', JSON.stringify(seen));
+    showAbductionBanners(newAbductions);
+  }
+}
+
+function showAbductionBanners(abductions) {
+  // Remove any existing banners
+  document.querySelectorAll('.abd-banner').forEach(el => el.remove());
+  
+  let container = document.getElementById('abd-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'abd-container';
+    container.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;pointer-events:none;';
+    document.body.appendChild(container);
+  }
+  
+  abductions.forEach((abd, i) => {
+    const banner = document.createElement('div');
+    banner.className = 'abd-banner';
+    banner.innerHTML = `
+      <div class="abd-banner-content">
+        <span class="abd-banner-icon">🏴‍☠️</span>
+        <span class="abd-banner-text"><strong>${esc(abd.player)}</strong> abducted <strong>${esc(abd.to)}</strong> from their owner</span>
+        <span class="abd-banner-sub">${esc(abd.from)} lost but covered — ${esc(abd.player)} takes ${esc(abd.to)}</span>
+      </div>
+      <button class="abd-banner-close" onclick="this.parentElement.classList.add('abd-dismiss')">&times;</button>
+    `;
+    banner.style.animationDelay = `${i * 200}ms`;
+    container.appendChild(banner);
+    
+    // Auto-dismiss after 8 seconds
+    setTimeout(() => { banner.classList.add('abd-dismiss'); }, 8000 + i * 200);
+    // Remove from DOM after animation
+    setTimeout(() => { banner.remove(); }, 8500 + i * 200);
+  });
+}
+
 async function load() {
   try {
     const res = await fetch('/api/data');
@@ -913,6 +985,7 @@ async function load() {
     const d = await res.json();
     // Cache successful response in localStorage for offline fallback
     try { localStorage.setItem('lms_cache', JSON.stringify({ ts: Date.now(), data: d })); } catch(e) {}
+    checkAbductions(d.standings);
     renderStandings(d.standings);
     renderBracket(d.bracket);
     renderGames(d.games);
