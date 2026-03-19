@@ -386,6 +386,7 @@ html { overscroll-behavior-y: none; }
 </head>
 <body>
 
+<div class="container">
 <div class="header">
   <div class="header-inner">
     <div>
@@ -408,6 +409,7 @@ html { overscroll-behavior-y: none; }
   <div id="bracketView" class="view"></div>
   <div id="gamesView" class="view"></div>
 </div>
+</div><!-- end .container -->
 
 <!-- Game Detail View (full-screen overlay, slides in from right) -->
 <div id="gameDetailView">
@@ -946,59 +948,61 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
-// Pull to refresh — iOS-native feel
+// Pull to refresh — pushes content down like native iOS
 (() => {
   const ptr = document.createElement('div');
   ptr.innerHTML = '<div class="ptr-spinner"></div>';
   ptr.className = 'ptr';
   document.body.prepend(ptr);
 
+  // The main content wrapper that gets pushed down
+  const content = document.querySelector('.container') || document.body.children[1];
+
   const style = document.createElement('style');
   style.textContent = `
     .ptr {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+      position: absolute; top: 0; left: 0; right: 0;
       display: flex; align-items: center; justify-content: center;
-      height: 0; overflow: hidden; transition: none;
-      background: rgba(10,10,15,0.95);
-      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-      will-change: height;
-      contain: layout style;
+      height: 60px; z-index: 10;
+      transform: translateY(-60px);
+      pointer-events: none;
     }
-    .ptr.releasing { transition: height 0.3s cubic-bezier(0.2,0,0,1), opacity 0.3s ease; }
-    .ptr.refreshing { transition: height 0.2s cubic-bezier(0.2,0,0,1); }
     .ptr-spinner {
-      width: 20px; height: 20px; border-radius: 50%;
-      border: 2px solid var(--card-border);
+      width: 22px; height: 22px; border-radius: 50%;
+      border: 2.5px solid var(--card-border);
       border-top-color: var(--accent);
       opacity: 0;
       will-change: transform, opacity;
       transform: translateZ(0) scale(0.5) rotate(0deg);
-      transition: opacity 0.2s, transform 0.3s cubic-bezier(0.2,0,0,1);
+      transition: opacity 0.15s, transform 0.15s;
     }
-    .ptr.pulling .ptr-spinner { opacity: 1; transform: translateZ(0) scale(1) rotate(var(--rot)); }
-    .ptr.ready .ptr-spinner { opacity: 1; transform: translateZ(0) scale(1.1) rotate(var(--rot)); border-top-color: var(--green); }
+    .ptr.pulling .ptr-spinner { opacity: 1; transform: translateZ(0) scale(1) rotate(var(--rot, 0deg)); }
+    .ptr.ready .ptr-spinner { opacity: 1; transform: translateZ(0) scale(1.1) rotate(var(--rot, 0deg)); border-top-color: var(--green); }
     .ptr.refreshing .ptr-spinner {
       opacity: 1; transform: translateZ(0) scale(1);
       animation: ptr-spin 0.6s linear infinite;
     }
     @keyframes ptr-spin { to { transform: translateZ(0) rotate(360deg); } }
+    body.ptr-active { overflow: hidden; }
+    body.ptr-transition .container,
+    body.ptr-transition .ptr { transition: transform 0.3s cubic-bezier(0.2,0,0,1); }
   `;
   document.head.appendChild(style);
 
-  let startY = 0, startX = 0, active = false, refreshing = false, locked = false;
-  const threshold = 70, maxPull = 100;
+  let startY = 0, startX = 0, active = false, refreshing = false, locked = false, pullDist = 0;
+  const threshold = 65, maxPull = 110;
 
   document.addEventListener('touchstart', e => {
     if (refreshing) return;
-    // Only activate at top of page — check both scroll positions
     const scrollTop = window.scrollY || document.documentElement.scrollTop || 0;
     if (scrollTop > 5) return;
     startY = e.touches[0].clientY;
     startX = e.touches[0].clientX;
     active = true;
     locked = false;
+    pullDist = 0;
+    document.body.classList.remove('ptr-transition');
     ptr.classList.remove('releasing', 'refreshing', 'ready', 'pulling');
-    ptr.style.transition = 'none';
   }, { passive: true });
 
   document.addEventListener('touchmove', e => {
@@ -1006,7 +1010,6 @@ if ('serviceWorker' in navigator) {
     const dy = e.touches[0].clientY - startY;
     const dx = e.touches[0].clientX - startX;
 
-    // Lock direction on first significant move — if horizontal, bail (bracket scrolling)
     if (!locked) {
       if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
         locked = true;
@@ -1014,14 +1017,15 @@ if ('serviceWorker' in navigator) {
       } else { return; }
     }
 
-    if (dy <= 0) return;
+    if (dy <= 0) { pullDist = 0; setTransform(0); return; }
 
-    // Use requestAnimationFrame for smooth updates
-    const pull = Math.min(dy * 0.45, maxPull);
-    const pct = Math.min(pull / threshold, 1);
+    pullDist = Math.min(dy * 0.45, maxPull);
+    const pct = Math.min(pullDist / threshold, 1);
+
     requestAnimationFrame(() => {
       if (!active) return;
-      ptr.style.height = pull + 'px';
+      document.body.classList.add('ptr-active');
+      setTransform(pullDist);
       ptr.style.setProperty('--rot', (pct * 270) + 'deg');
       ptr.classList.add('pulling');
       if (pct >= 1) ptr.classList.add('ready');
@@ -1029,30 +1033,38 @@ if ('serviceWorker' in navigator) {
     });
   }, { passive: true });
 
+  function setTransform(px) {
+    const t = `translateY(${px}px)`;
+    if (content) content.style.transform = t;
+    ptr.style.transform = `translateY(${px - 60}px)`;
+  }
+
   function release() {
     if (!active || refreshing) return;
     active = false;
-    const h = parseFloat(ptr.style.height) || 0;
-    if (h >= threshold) {
+    document.body.classList.add('ptr-transition');
+
+    if (pullDist >= threshold) {
       refreshing = true;
       ptr.classList.remove('pulling', 'ready');
       ptr.classList.add('refreshing');
-      ptr.style.height = '44px';
-      load().then(() => {
-        setTimeout(dismiss, 200); // brief pause so spinner doesn't vanish instantly
-      }).catch(() => {
-        dismiss();
-      });
+      setTransform(55);
+      load().then(() => setTimeout(dismiss, 200)).catch(() => dismiss());
     } else {
       dismiss();
     }
   }
 
   function dismiss() {
+    document.body.classList.add('ptr-transition');
     ptr.classList.remove('pulling', 'ready', 'refreshing');
-    ptr.classList.add('releasing');
-    ptr.style.height = '0';
-    setTimeout(() => { refreshing = false; ptr.classList.remove('releasing'); }, 320);
+    setTransform(0);
+    setTimeout(() => {
+      refreshing = false;
+      document.body.classList.remove('ptr-active', 'ptr-transition');
+      if (content) content.style.transform = '';
+      ptr.style.transform = 'translateY(-60px)';
+    }, 320);
   }
 
   document.addEventListener('touchend', release, { passive: true });
