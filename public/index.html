@@ -534,8 +534,8 @@ function playerCard(p) {
         const vsLine = t.opponent ? `vs ${esc(t.opponent)}` : '';
         const isAbducted = !!(t.abductedFrom);
         const extraChipClass = isAbducted ? ' abducted' : '';
-        // Add click handler for live/completed games
-        const isClickable = t.espnId && (t.status === 'playing' || chipStatus === 'survived');
+        // Add click handler for any team with an ESPN game ID
+        const isClickable = !!t.espnId;
         const clickAttr = isClickable ? ` data-espn-id="${esc(t.espnId)}" onclick="openGameDetail('${esc(t.espnId)}')"` : '';
         return `<div class="team-chip ${chipStatus}${extraChipClass}" ${chipStyle}${clickAttr}>
           ${chipStatus === 'survived' ? '<span class="chip-check">&#10003;</span>' : `<div class="chip-dot"${t.status === 'playing' && t.margin != null ? ' style="background:currentColor"' : ''}></div>`}
@@ -591,7 +591,7 @@ function gameCard(g, type) {
   const isLive = type === 'live';
   const isFinal = type === 'final';
   const hasScores = g.team1.score != null && g.team2.score != null && (isLive || isFinal);
-  const clickable = !!(g.espnId && (isLive || isFinal));
+  const clickable = !!g.espnId;
 
   let statusText = '';
   if (isLive) statusText = g.statusDetail || 'In Progress';
