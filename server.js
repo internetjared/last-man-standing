@@ -516,6 +516,27 @@ function buildStandings(allGames, rosterPlayers) {
     }
   }
 
+  // === Chain resolution: walk abduction chains to final destinations ===
+  // e.g. TeamA abducted to TeamB in R1, TeamB abducted to TeamC in R2 → TeamA displays as TeamC
+  const resolvedAbductions = new Map();
+  for (const [startKey, firstTarget] of abductions) {
+    let finalTeam = firstTarget;
+    const visited = new Set([startKey]);
+    let found = true;
+    while (found) {
+      found = false;
+      for (const [k, v] of abductions) {
+        if (!visited.has(k) && teamsMatch(finalTeam, k)) {
+          visited.add(k);
+          finalTeam = v;
+          found = true;
+          break;
+        }
+      }
+    }
+    resolvedAbductions.set(startKey, finalTeam);
+  }
+
   const standings = Object.entries(rosterPlayers).map(([name, teams]) => {
     const teamDetails = teams.map(teamName => {
       // Handle play-in slash picks
@@ -525,15 +546,15 @@ function buildStandings(allGames, rosterPlayers) {
         const aElim = isEliminated(optA.trim(), eliminated);
         const bElim = isEliminated(optB.trim(), eliminated);
         if (aElim && !bElim) {
-          return resolveTeamStatus(optB.trim(), eliminated, playing, survived, abductions, null, teamGameInfo);
+          return resolveTeamStatus(optB.trim(), eliminated, playing, survived, resolvedAbductions, null, teamGameInfo);
         }
         if (bElim && !aElim) {
-          return resolveTeamStatus(optA.trim(), eliminated, playing, survived, abductions, null, teamGameInfo);
+          return resolveTeamStatus(optA.trim(), eliminated, playing, survived, resolvedAbductions, null, teamGameInfo);
         }
         return { name: teamName, status: 'alive', gameInfo: 'Play-in pending' };
       }
 
-      return resolveTeamStatus(teamName, eliminated, playing, survived, abductions, null, teamGameInfo);
+      return resolveTeamStatus(teamName, eliminated, playing, survived, resolvedAbductions, null, teamGameInfo);
     });
 
     const alive = teamDetails.filter(t => t.status !== 'eliminated').length;
@@ -574,10 +595,12 @@ function resolveTeamStatus(teamName, eliminated, playing, survived, abductions, 
     if (teamsMatch(teamName, key)) {
       const abductedTo = abductions ? abductions.get(key) : null;
       const displayName = abductedTo || teamName;
+      // abductedFrom = the original team name this player started with
+      const abductedFrom = abductedTo ? teamName : null;
       const gameInfo = abductedTo
         ? `${info} → now riding ${abductedTo}`
         : (extraInfo ? `${extraInfo} · ${info}` : info);
-      return { name: displayName, status: 'alive', gameInfo, abductedFrom: abductedTo ? teamName : null, ...gameCtx };
+      return { name: displayName, status: 'alive', gameInfo, abductedFrom, ...gameCtx };
     }
   }
   return { name: teamName, status: 'alive', gameInfo: extraInfo, ...gameCtx };

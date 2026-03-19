@@ -129,6 +129,18 @@ html { overscroll-behavior-y: none; }
 .chip-spread.dog { color: var(--green); }
 .upcoming .chip-spread { opacity: 0.6; }
 .chip-info { font-size: 9px; font-weight: 400; opacity: 0.7; margin-top: 1px; }
+.chip-abducted-from { font-size: 9px; font-weight: 600; opacity: 0.75; margin-top: 1px; color: var(--yellow); }
+.team-chip.abducted {
+  background: rgba(234,179,8,0.08) !important;
+  color: var(--yellow) !important;
+  border: 1px solid rgba(234,179,8,0.2);
+}
+.team-chip.abducted .chip-dot { background: var(--yellow); }
+.chip-abd-tag {
+  font-size: 8px; font-weight: 800; padding: 1px 4px; border-radius: 3px;
+  background: rgba(234,179,8,0.2); color: var(--yellow);
+  flex-shrink: 0; letter-spacing: 0.3px;
+}
 
 /* Game Cards */
 .section-label {
@@ -371,13 +383,17 @@ function playerCard(p) {
         }
         const spreadClass = (!spreadStyle && spread) ? (spread.startsWith('-') ? 'fav' : spread.startsWith('+') ? 'dog' : '') : '';
         const vsLine = t.opponent ? `vs ${esc(t.opponent)}` : '';
-        return `<div class="team-chip ${chipStatus}" ${chipStyle}>
+        const isAbducted = !!(t.abductedFrom);
+        const extraChipClass = isAbducted ? ' abducted' : '';
+        return `<div class="team-chip ${chipStatus}${extraChipClass}" ${chipStyle}>
           ${chipStatus === 'survived' ? '<span class="chip-check">&#10003;</span>' : `<div class="chip-dot"${t.status === 'playing' && t.margin != null ? ' style="background:currentColor"' : ''}></div>`}
           <div class="chip-main">
             <span class="chip-team">${esc(t.name)}</span>
-            ${vsLine ? `<div class="chip-vs">${vsLine}</div>` : ''}
+            ${isAbducted ? `<div class="chip-abducted-from">was ${esc(t.abductedFrom)}</div>` : ''}
+            ${!isAbducted && vsLine ? `<div class="chip-vs">${vsLine}</div>` : ''}
             ${t.status === 'playing' && t.gameInfo ? `<div class="chip-info">${esc(t.gameInfo)}</div>` : ''}
           </div>
+          ${isAbducted ? '<span class="chip-abd-tag">ABD</span>' : ''}
           ${spread ? `<div class="chip-spread ${spreadClass}" ${spreadStyle}>${esc(spread)}</div>` : ''}
         </div>`;
       }).join('')}
@@ -571,8 +587,10 @@ function bracketTeamRow(t, game, hasScores) {
 async function load() {
   try {
     const res = await fetch('/api/data');
-    if (!res.ok) throw new Error('fail');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const d = await res.json();
+    // Cache successful response in localStorage for offline fallback
+    try { localStorage.setItem('lms_cache', JSON.stringify({ ts: Date.now(), data: d })); } catch(e) {}
     renderStandings(d.standings);
     renderBracket(d.bracket);
     renderGames(d.games);
@@ -581,11 +599,33 @@ async function load() {
   } catch (e) {
     console.error(e);
     document.getElementById('clock').textContent = 'Error';
+    // Try cached data first
+    try {
+      const cached = JSON.parse(localStorage.getItem('lms_cache') || 'null');
+      if (cached && cached.data) {
+        renderStandings(cached.data.standings);
+        renderBracket(cached.data.bracket);
+        renderGames(cached.data.games);
+        const ago = Math.round((Date.now() - cached.ts) / 60000);
+        document.getElementById('clock').textContent = `Offline · ${ago}m ago`;
+        return;
+      }
+    } catch(_) {}
+    // No cache — show retry message
+    const el = document.getElementById('standingsView');
+    el.innerHTML = `<div class="empty" style="cursor:pointer" onclick="load()">
+      ⚠️ Failed to load<br><span style="font-size:12px;opacity:0.6;margin-top:6px;display:block">Tap to retry</span>
+    </div>`;
   }
 }
 
 load();
 setInterval(load, 15000);
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
 
 // Pull to refresh — iOS-native feel
 (() => {
