@@ -523,6 +523,89 @@ async function load() {
 load();
 setInterval(load, 15000);
 
+// Pull to refresh — iOS-native feel
+(() => {
+  const ptr = document.createElement('div');
+  ptr.innerHTML = '<div class="ptr-spinner"></div>';
+  ptr.className = 'ptr';
+  document.body.prepend(ptr);
+
+  const style = document.createElement('style');
+  style.textContent = `
+    .ptr {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+      display: flex; align-items: center; justify-content: center;
+      height: 0; overflow: hidden; transition: none;
+      background: rgba(10,10,15,0.95);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    }
+    .ptr.releasing { transition: height 0.3s cubic-bezier(0.2,0,0,1), opacity 0.3s ease; }
+    .ptr.refreshing { transition: height 0.2s cubic-bezier(0.2,0,0,1); }
+    .ptr-spinner {
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 2px solid var(--card-border);
+      border-top-color: var(--accent);
+      opacity: 0; transform: scale(0.5) rotate(0deg);
+      transition: opacity 0.2s, transform 0.3s cubic-bezier(0.2,0,0,1);
+    }
+    .ptr.pulling .ptr-spinner { opacity: 1; transform: scale(1) rotate(var(--rot)); }
+    .ptr.ready .ptr-spinner { opacity: 1; transform: scale(1.1) rotate(var(--rot)); border-top-color: var(--green); }
+    .ptr.refreshing .ptr-spinner {
+      opacity: 1; transform: scale(1);
+      animation: ptr-spin 0.6s linear infinite;
+    }
+    @keyframes ptr-spin { to { transform: rotate(360deg); } }
+  `;
+  document.head.appendChild(style);
+
+  let startY = 0, active = false, refreshing = false;
+  const threshold = 70, maxPull = 100;
+
+  document.addEventListener('touchstart', e => {
+    if (refreshing || window.scrollY > 0) return;
+    startY = e.touches[0].clientY;
+    active = true;
+    ptr.classList.remove('releasing', 'refreshing', 'ready');
+    ptr.style.transition = 'none';
+  }, { passive: true });
+
+  document.addEventListener('touchmove', e => {
+    if (!active || refreshing) return;
+    const dy = Math.max(0, e.touches[0].clientY - startY);
+    if (dy === 0) return;
+    // Rubber band resistance
+    const pull = Math.min(dy * 0.45, maxPull);
+    const pct = Math.min(pull / threshold, 1);
+    ptr.style.height = pull + 'px';
+    ptr.style.setProperty('--rot', (pct * 270) + 'deg');
+    ptr.classList.add('pulling');
+    if (pct >= 1) ptr.classList.add('ready');
+    else ptr.classList.remove('ready');
+  }, { passive: true });
+
+  document.addEventListener('touchend', () => {
+    if (!active || refreshing) return;
+    active = false;
+    const h = parseFloat(ptr.style.height) || 0;
+    if (h >= threshold) {
+      refreshing = true;
+      ptr.classList.remove('pulling', 'ready');
+      ptr.classList.add('refreshing');
+      ptr.style.height = '44px';
+      load().finally(() => {
+        ptr.classList.remove('refreshing');
+        ptr.classList.add('releasing');
+        ptr.style.height = '0';
+        setTimeout(() => { refreshing = false; }, 300);
+      });
+    } else {
+      ptr.classList.remove('pulling', 'ready');
+      ptr.classList.add('releasing');
+      ptr.style.height = '0';
+    }
+  }, { passive: true });
+})();
+
 
 </script>
 </body>
