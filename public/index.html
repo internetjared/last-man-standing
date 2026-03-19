@@ -84,6 +84,11 @@ html { overscroll-behavior-y: none; }
 /* Tabs */
 .tabs {
   display: flex; max-width: 600px; margin: 0 auto; padding: 8px 16px 0; gap: 4px;
+  position: sticky; top: 51px; z-index: 99;
+  background: rgba(10,10,15,0.92);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--card-border);
+  padding-bottom: 0;
 }
 .tab {
   flex: 1; padding: 10px 8px; text-align: center;
