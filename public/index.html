@@ -85,49 +85,49 @@ html { overscroll-behavior-y: none; }
 /* Player Cards */
 .player-card {
   background: var(--card); border: 1px solid var(--card-border);
-  border-radius: 12px; padding: 14px; margin-bottom: 8px;
+  border-radius: 10px; padding: 10px 12px; margin-bottom: 6px;
 }
-.player-card.eliminated { opacity: 0.45; }
+.player-card.eliminated { opacity: 0.4; }
 .player-header {
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
 }
 
-.player-name { font-size: 16px; font-weight: 700; flex: 1; }
+.player-name { font-size: 14px; font-weight: 700; flex: 1; }
 .alive-count {
   font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 20px;
 }
 .alive-count.c4,.alive-count.c3 { background: var(--green-bg); color: var(--green); }
 .alive-count.c2,.alive-count.c1 { background: var(--yellow-bg); color: var(--yellow); }
 .alive-count.c0 { background: var(--red-bg); color: var(--red); }
-.team-list { display: flex; flex-direction: column; gap: 6px; }
+.team-list { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
 .team-chip {
-  display: flex; align-items: center; padding: 10px 12px;
-  border-radius: 10px; font-size: 13px; font-weight: 600; gap: 8px;
+  display: flex; align-items: center; padding: 6px 8px;
+  border-radius: 8px; font-size: 12px; font-weight: 600; gap: 5px;
+  min-height: 36px;
 }
 .team-chip.alive { background: var(--green-bg); color: var(--green); }
-.team-chip.eliminated { background: var(--red-bg); color: var(--red); opacity: 0.7; }
+.team-chip.eliminated { background: var(--red-bg); color: var(--red); opacity: 0.6; }
 .team-chip.eliminated .chip-team { text-decoration: line-through; }
 .team-chip.upcoming { background: rgba(107,107,128,0.08); color: var(--dim); }
 .team-chip.playing { transition: background 1s ease, color 0.5s ease; }
-.chip-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.chip-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
 .alive .chip-dot { background: var(--green); }
 .eliminated .chip-dot { background: var(--red); }
 .upcoming .chip-dot { background: var(--dim); }
 .playing .chip-dot { background: var(--yellow); animation: pulse 2s infinite; }
 .chip-main { flex: 1; min-width: 0; }
-.chip-top { display: flex; align-items: center; gap: 6px; }
-.chip-team { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.chip-seed { font-size: 10px; opacity: 0.6; font-weight: 500; }
-.chip-vs { font-size: 10px; font-weight: 400; opacity: 0.7; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.chip-vs .opp-owner { font-weight: 600; opacity: 0.6; }
+.chip-team { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+.chip-seed { font-size: 9px; opacity: 0.6; font-weight: 500; }
+.chip-vs { font-size: 9px; font-weight: 400; opacity: 0.6; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chip-spread {
-  font-size: 16px; font-weight: 800; letter-spacing: -0.5px;
-  flex-shrink: 0; text-align: right; min-width: 44px;
+  font-size: 13px; font-weight: 800; letter-spacing: -0.3px;
+  flex-shrink: 0; text-align: right; min-width: 32px;
+  transition: color 1s ease;
 }
 .chip-spread.fav { color: var(--red); }
 .chip-spread.dog { color: var(--green); }
-.upcoming .chip-spread { opacity: 0.7; }
-.chip-info { font-size: 10px; font-weight: 400; opacity: 0.8; margin-top: 2px; }
+.upcoming .chip-spread { opacity: 0.6; }
+.chip-info { font-size: 9px; font-weight: 400; opacity: 0.7; margin-top: 1px; }
 
 /* Game Cards */
 .section-label {
@@ -343,7 +343,7 @@ function playerCard(p) {
         let chipStyle = '';
         let chipStatus = t.status;
         if (t.status === 'alive' && !t.gameInfo) chipStatus = 'upcoming';
-        // Dynamic gradient for live games
+        // Dynamic background for live games based on cover margin
         if (t.status === 'playing' && t.margin != null) {
           const m = Math.max(-15, Math.min(15, t.margin));
           const pct = (m + 15) / 30;
@@ -356,19 +356,26 @@ function playerCard(p) {
           chipStyle = `style="background:var(--yellow-bg); color:var(--yellow)"`;
         }
         const spread = t.spread || '';
-        const spreadClass = spread.startsWith('-') ? 'fav' : spread.startsWith('+') ? 'dog' : '';
-        const vsLine = t.opponent ? `vs ${t.opponentSeed ? '(' + esc(t.opponentSeed) + ') ' : ''}${esc(t.opponent)}${t.opponentOwner ? ' <span class="opp-owner">' + esc(t.opponentOwner) + '</span>' : ''}` : '';
-        return `<div class="team-chip ${chipStatus}${t.abductedFrom ? ' abducted' : ''}" ${chipStyle}>
+        // Dynamic spread color: for live games, shift from red→green based on cover distance
+        let spreadStyle = '';
+        if (t.status === 'playing' && t.margin != null && spread) {
+          const m = Math.max(-15, Math.min(15, t.margin));
+          const pct = (m + 15) / 30; // 0=deep red, 0.5=neutral, 1=deep green
+          const sr = Math.round(239 - pct * 200);
+          const sg = Math.round(68 + pct * 129);
+          const sb = Math.round(68 - pct * 20);
+          spreadStyle = `style="color:rgb(${sr},${sg},${sb})"`;
+        }
+        const spreadClass = (!spreadStyle && spread) ? (spread.startsWith('-') ? 'fav' : spread.startsWith('+') ? 'dog' : '') : '';
+        const vsLine = t.opponent ? `vs ${esc(t.opponent)}` : '';
+        return `<div class="team-chip ${chipStatus}" ${chipStyle}>
           <div class="chip-dot"${t.status === 'playing' && t.margin != null ? ` style="background:currentColor"` : ''}></div>
           <div class="chip-main">
-            <div class="chip-top">
-              <span class="chip-team">${esc(t.name)}${t.abductedFrom ? ` <span style="font-size:9px;opacity:0.6">(was ${esc(t.abductedFrom)})</span>` : ''}</span>
-              ${t.seed ? `<span class="chip-seed">(${esc(t.seed)})</span>` : ''}
-            </div>
+            <span class="chip-team">${esc(t.name)}</span>
             ${vsLine ? `<div class="chip-vs">${vsLine}</div>` : ''}
             ${t.status === 'playing' && t.gameInfo ? `<div class="chip-info">${esc(t.gameInfo)}</div>` : ''}
           </div>
-          ${spread ? `<div class="chip-spread ${spreadClass}">${esc(spread)}</div>` : ''}
+          ${spread ? `<div class="chip-spread ${spreadClass}" ${spreadStyle}>${esc(spread)}</div>` : ''}
         </div>`;
       }).join('')}
     </div>
