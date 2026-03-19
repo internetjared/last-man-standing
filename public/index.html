@@ -647,12 +647,16 @@ function teamRow(t, hasScores, isFinal, isLive) {
     if (t.survived === false) {
       winClass = ' loser';
       survivalTag = '<span class="survival-tag elim">OUT</span>';
+    } else if (t.survived === true && t.won && t.survivalReason && t.survivalReason.includes('didn\'t cover')) {
+      // Winner but got abducted (won the game but loser covered the spread — team stolen)
+      winClass = ' winner';
+      survivalTag = '<span class="survival-tag abduction">\u{1F3F4}\u200D\u2620\uFE0F\u{1F6A8}</span>';
     } else if (t.survived === true && t.won) {
       winClass = ' winner';
       survivalTag = '<span class="survival-tag safe">W</span>';
     } else if (t.survived === true && !t.won) {
       winClass = ' winner';
-      survivalTag = '<span class="survival-tag abduction">ABD</span>';
+      survivalTag = '<span class="survival-tag abduction">\u{1F3F4}\u200D\u2620\uFE0F\u{1F6A8}</span>';
     } else if (t.won === true) {
       winClass = ' winner';
     } else if (t.won === false) {
