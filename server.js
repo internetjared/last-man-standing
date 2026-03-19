@@ -449,8 +449,8 @@ function buildStandings(allGames, rosterPlayers) {
   // (play-ins lack spreads/seeds from the sheet and would clobber good data)
   for (const g of allGames) {
     const t1n = norm(g.team1.team), t2n = norm(g.team2.team);
-    const t1data = { spread: g.team1.spread, opponent: g.team2.team, seed: g.team1.seed, opponentSeed: g.team2.seed, time: g.statusDetail, section: g.section, opponentOwner: g.team2.owner };
-    const t2data = { spread: g.team2.spread, opponent: g.team1.team, seed: g.team2.seed, opponentSeed: g.team1.seed, time: g.statusDetail, section: g.section, opponentOwner: g.team1.owner };
+    const t1data = { spread: g.team1.spread, opponent: g.team2.team, seed: g.team1.seed, opponentSeed: g.team2.seed, time: g.statusDetail, section: g.section, opponentOwner: g.team2.owner, espnId: g.espnId, gameIsLive: g.isLive, gameIsFinal: g.isFinal };
+    const t2data = { spread: g.team2.spread, opponent: g.team1.team, seed: g.team2.seed, opponentSeed: g.team1.seed, time: g.statusDetail, section: g.section, opponentOwner: g.team1.owner, espnId: g.espnId, gameIsLive: g.isLive, gameIsFinal: g.isFinal };
     // Only set if no existing entry with spread data (prevents play-in from clobbering first-round)
     if (!teamGameInfo.has(t1n) || !teamGameInfo.get(t1n).spread) teamGameInfo.set(t1n, t1data);
     if (!teamGameInfo.has(t2n) || !teamGameInfo.get(t2n).spread) teamGameInfo.set(t2n, t2data);
@@ -819,6 +819,161 @@ app.get('/api/data', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// --- Single Game Endpoint ---
+app.get('/api/game/:espnId', async (req, res) => {
+  try {
+    const { espnId } = req.params;
+
+    const [scheduleRows, rosterRows, espnGames] = await Promise.all([
+      getCached('schedule', () => fetchCSV(SCHEDULE_CSV_URL), SHEET_TTL),
+      getCached('roster', () => fetchCSV(ROSTER_CSV_URL), SHEET_TTL),
+      getCached('espn', fetchESPN, ESPN_TTL),
+    ]);
+
+    // Find the ESPN event directly
+    const espnGame = espnGames.find(g => g && g.id === espnId);
+    if (!espnGame) {
+      // Try fetching directly from ESPN by event ID
+      try {
+        const directRes = await fetch(`http://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/summary?event=${espnId}`);
+        if (directRes.ok) {
+          const eventData = await directRes.json();
+          // Build a basic game from the summary endpoint
+          const boxscore = eventData.boxscore;
+          const header = eventData.header;
+          if (header && header.competitions && header.competitions[0]) {
+            const comp = header.competitions[0];
+            const parsed = parseESPNEvent({ id: espnId, competitions: [comp], date: comp.date, status: comp.status });
+            if (parsed) {
+              // Try to enrich with sheet data
+              const sheetGames = parseScheduleSheet(scheduleRows);
+              const enriched = enrichGames(sheetGames, [parsed]);
+              const gameFromSheet = enriched.find(g => g.espnId === espnId);
+              if (gameFromSheet) {
+                return res.json(buildGameDetail(gameFromSheet, rosterRows));
+              }
+              return res.json(buildGameDetail({ ...parsed, espnId }, rosterRows));
+            }
+          }
+        }
+      } catch (e) { /* fall through */ }
+      return res.status(404).json({ error: 'Game not found' });
+    }
+
+    // Find the matching sheet game
+    const sheetGames = parseScheduleSheet(scheduleRows);
+    const enriched = enrichGames(sheetGames, espnGames);
+    const game = enriched.find(g => g.espnId === espnId);
+
+    // Check play-in games too
+    const playInGames = findPlayInGames(espnGames);
+    const playInGame = playInGames.find(g => g.espnId === espnId);
+
+    const foundGame = game || playInGame;
+
+    if (!foundGame) {
+      // ESPN game exists but not on sheet — return basic ESPN data
+      return res.json(buildGameDetailFromESPN(espnGame));
+    }
+
+    // Backfill owners
+    const rosterPlayers = parseRosterSheet(rosterRows);
+    const teamToOwner = {};
+    for (const [player, teams] of Object.entries(rosterPlayers)) {
+      for (const t of teams) {
+        const slashMatch = t.match(/^(.+?)\s*\/\s*(.+)$/);
+        const teamNames = slashMatch ? [slashMatch[1].trim(), slashMatch[2].trim()] : [t];
+        for (const tn of teamNames) {
+          teamToOwner[norm(tn)] = player;
+          const group = getAliasGroup(norm(tn));
+          if (group && ALIASES[group]) {
+            teamToOwner[norm(group)] = player;
+            ALIASES[group].forEach(a => { teamToOwner[norm(a)] = player; });
+          }
+        }
+      }
+    }
+    if (!foundGame.team1.owner) {
+      const n = norm(foundGame.team1.team);
+      const group = getAliasGroup(n);
+      foundGame.team1.owner = teamToOwner[n] || (group ? teamToOwner[norm(group)] : null) || null;
+    }
+    if (!foundGame.team2.owner) {
+      const n = norm(foundGame.team2.team);
+      const group = getAliasGroup(n);
+      foundGame.team2.owner = teamToOwner[n] || (group ? teamToOwner[norm(group)] : null) || null;
+    }
+
+    res.json(buildGameDetail(foundGame, rosterRows));
+  } catch (err) {
+    console.error('Game API error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+function buildGameDetail(game, rosterRows) {
+  return {
+    espnId: game.espnId,
+    status: game.espnStatus || game.status,
+    statusDetail: game.statusDetail,
+    isLive: game.isLive,
+    isFinal: game.isFinal,
+    isScheduled: !game.isLive && !game.isFinal,
+    section: game.section,
+    region: game.region,
+    date: game.date,
+    team1: {
+      name: game.team1.team,
+      seed: game.team1.seed,
+      score: game.team1.score,
+      spread: game.team1.spread,
+      owner: game.team1.owner,
+      won: game.team1.won,
+      survived: game.team1.survived,
+      survivalReason: game.team1.survivalReason,
+      covering: game.team1.covering,
+    },
+    team2: {
+      name: game.team2.team,
+      seed: game.team2.seed,
+      score: game.team2.score,
+      spread: game.team2.spread,
+      owner: game.team2.owner,
+      won: game.team2.won,
+      survived: game.team2.survived,
+      survivalReason: game.team2.survivalReason,
+      covering: game.team2.covering,
+    },
+  };
+}
+
+function buildGameDetailFromESPN(espnGame) {
+  return {
+    espnId: espnGame.id,
+    status: espnGame.status,
+    statusDetail: espnGame.statusDetail,
+    isLive: espnGame.isLive,
+    isFinal: espnGame.isFinal,
+    isScheduled: espnGame.isScheduled,
+    region: espnGame.region,
+    date: espnGame.date,
+    team1: {
+      name: espnGame.home?.name || 'TBD',
+      seed: espnGame.home?.seed,
+      score: espnGame.home?.score,
+      spread: '',
+      owner: null,
+    },
+    team2: {
+      name: espnGame.away?.name || 'TBD',
+      seed: espnGame.away?.seed,
+      score: espnGame.away?.score,
+      spread: '',
+      owner: null,
+    },
+  };
+}
 
 // Local dev: listen on PORT. Vercel: export the app.
 if (process.env.VERCEL) {
