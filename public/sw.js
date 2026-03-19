@@ -1,8 +1,8 @@
 // Last Man Standing — Service Worker
 // Strategy: network-first with cache fallback (stale-while-revalidate)
 
-const SHELL_CACHE = 'lms-shell-v2';
-const DATA_CACHE = 'lms-data-v2';
+const SHELL_CACHE = 'lms-shell-v3';
+const DATA_CACHE = 'lms-data-v3';
 
 const SHELL_ASSETS = [
   '/',

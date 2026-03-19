@@ -184,6 +184,10 @@ html { overscroll-behavior-y: none; }
 .game-card.live { border-color: var(--yellow); box-shadow: 0 0 20px rgba(234,179,8,0.08); }
 .game-card.final .team-row.loser { opacity: 0.5; }
 .game-card.final .team-row.winner .team-name { color: var(--green); }
+.game-card.final .team-row.stolen-winner .team-name { color: rgba(74,222,128,0.5); }
+.game-card.final .team-row.stolen-winner { opacity: 0.7; }
+.survival-tag.stolen-tag { background: rgba(74,222,128,0.15); color: rgba(74,222,128,0.6); }
+.survival-tag.abduction { background: rgba(250,204,21,0.08); color: rgba(250,204,21,0.7); }
 
 .game-status {
   font-size: 11px; font-weight: 600; text-transform: uppercase;
@@ -405,7 +409,7 @@ html { overscroll-behavior-y: none; }
 }
 .survival-badge.safe { background: var(--green-bg); color: var(--green); }
 .survival-badge.abduction { background: var(--yellow-bg); color: var(--yellow); }
-.survival-badge.stolen-badge { background: rgba(239,68,68,0.1); color: var(--red); }
+.survival-badge.stolen-badge { background: rgba(74,222,128,0.15); color: rgba(74,222,128,0.6); }
 .survival-badge.elim { background: var(--red-bg); color: var(--red); }
 
 .game-card { cursor: pointer; }
@@ -659,8 +663,8 @@ function teamRow(t, hasScores, isFinal, isLive) {
       survivalTag = '<span class="survival-tag elim">OUT</span>';
     } else if (t.won && t.survivalReason && t.survivalReason.includes('didn\'t cover')) {
       // Louisville scenario: won the game but didn't cover — team gets stolen
-      winClass = ' winner';
-      survivalTag = '<span class="survival-tag stolen-tag">W \u{1F3F4}\u200D\u2620\uFE0F</span>';
+      winClass = ' winner stolen-winner';
+      survivalTag = '<span class="survival-tag stolen-tag">W</span>';
     } else if (t.won) {
       // Clean win + covered
       winClass = ' winner';
@@ -885,7 +889,7 @@ function renderGameDetail(g) {
   function coverOrSurvival(t, isT1) {
     if (g.isFinal) {
       if (t.won && t.survivalReason && t.survivalReason.includes('didn\'t cover')) {
-        return `<span class="survival-badge stolen-badge">W \u{1F3F4}\u200D\u2620\uFE0F</span>`;
+        return `<span class="survival-badge stolen-badge">W</span>`;
       } else if (t.won) {
         return `<span class="survival-badge safe">W</span>`;
       } else if (!t.won && t.survived === true) {
