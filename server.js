@@ -15,7 +15,7 @@ const ESPN_SCOREBOARD = 'http://site.api.espn.com/apis/site/v2/sports/basketball
 // --- Cache ---
 const cache = {};
 const SHEET_TTL = 5 * 60 * 1000;
-const ESPN_TTL = 30 * 1000;
+const ESPN_TTL = 15 * 1000;
 
 async function getCached(key, fn, ttl) {
   const c = cache[key];
