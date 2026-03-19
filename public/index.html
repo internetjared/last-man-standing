@@ -971,7 +971,7 @@ function showAbductionBanners(abductions) {
         <span class="abd-banner-text"><strong>${esc(abd.player)}</strong> abducted <strong>${esc(abd.to)}</strong> from their owner</span>
         <span class="abd-banner-sub">${esc(abd.from)} lost but covered — ${esc(abd.player)} takes ${esc(abd.to)}</span>
       </div>
-      <button class="abd-banner-close" onclick="this.parentElement.classList.add('abd-dismiss')">&times;</button>
+      <button class="abd-banner-close" onclick="this.closest('.abd-banner').classList.add('abd-dismiss');setTimeout(()=>this.closest('.abd-banner')?.remove(),400)">&times;</button>
     `;
     banner.style.animationDelay = `${i * 200}ms`;
     container.appendChild(banner);
