@@ -729,8 +729,15 @@ function renderBracket(data) {
         if (g.isFinal) timeLabel = 'Final';
         else if (g.isLive) timeLabel = g.statusDetail || 'Live';
         else if (g.statusDetail) {
-          const m = g.statusDetail.match(/(\d{1,2}:\d{2}\s*[AP]M)/i);
-          timeLabel = m ? m[1] : '';
+          const dateMatch = g.statusDetail.match(/(\d{1,2}\/\d{1,2})\s*-\s*(\d{1,2}:\d{2}\s*[AP]M)/i);
+          if (dateMatch) {
+            const today = new Date();
+            const todayStr = (today.getMonth()+1) + '/' + today.getDate();
+            timeLabel = dateMatch[1] === todayStr ? dateMatch[2] : dateMatch[1] + ' ' + dateMatch[2];
+          } else {
+            const m = g.statusDetail.match(/(\d{1,2}:\d{2}\s*[AP]M)/i);
+            timeLabel = m ? m[1] : '';
+          }
         }
         html += `<div class="bracket-game"><div class="bracket-slot${g.isLive ? ' live' : ''}">`;
         html += bracketTeamRow(g.team1, g, hasScores);
