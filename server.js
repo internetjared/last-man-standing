@@ -644,6 +644,16 @@ const fs = require('fs');
 const publicDir = path.join(__dirname, 'public');
 
 // Explicit static file routes (Vercel serverless doesn't serve express.static for binary files)
+app.get('/api/debug-files', (req, res) => {
+  const dir = path.join(__dirname, 'public');
+  try {
+    const files = fs.readdirSync(dir);
+    res.json({ dir, files, exists: fs.existsSync(path.join(dir, 'icon-192.png')) });
+  } catch(e) {
+    res.json({ error: e.message, dirname: __dirname, cwd: process.cwd() });
+  }
+});
+
 app.get('/icon-192.png', (req, res) => {
   res.type('image/png').send(fs.readFileSync(path.join(publicDir, 'icon-192.png')));
 });
