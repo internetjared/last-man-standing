@@ -622,7 +622,7 @@ function buildBracketData(games, rosterPlayers) {
     return {
       team1: { name: g.team1.team, seed: g.team1.seed, owner: g.team1.owner, score: g.team1.score, spread: g.team1.spread, won: g.team1.won, survived: g.team1.survived, survivalReason: g.team1.survivalReason },
       team2: { name: g.team2.team, seed: g.team2.seed, owner: g.team2.owner, score: g.team2.score, spread: g.team2.spread, won: g.team2.won, survived: g.team2.survived, survivalReason: g.team2.survivalReason },
-      isFinal: g.isFinal, isLive: g.isLive, statusDetail: g.statusDetail || '', region: g.region
+      isFinal: g.isFinal, isLive: g.isLive, statusDetail: g.statusDetail || '', region: g.region, espnId: g.espnId || null
     };
   }
 

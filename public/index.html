@@ -733,7 +733,8 @@ function bracketTeamRow(t, game, hasScores) {
   const ownerName = t.owner || '';
   const firstName = ownerName.split(' ')[0]; // Show first name only to save space
 
-  return `<div class="${cls}">
+  const clickAttr = game.espnId ? ` onclick="openGameDetail('${esc(game.espnId)}')" style="cursor:pointer"` : '';
+  return `<div class="${cls}"${clickAttr}>
     ${t.seed ? `<div class="bracket-seed">${esc(t.seed)}</div>` : ''}
     <div class="bracket-name">${esc(t.name)}</div>
     ${firstName ? `<span class="bracket-owner">${esc(firstName)}</span>` : ''}
