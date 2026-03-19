@@ -976,10 +976,10 @@ function showAbductionBanners(abductions) {
     banner.style.animationDelay = `${i * 200}ms`;
     container.appendChild(banner);
     
-    // Auto-dismiss after 8 seconds
-    setTimeout(() => { banner.classList.add('abd-dismiss'); }, 8000 + i * 200);
+    // Auto-dismiss after 30 seconds
+    setTimeout(() => { banner.classList.add('abd-dismiss'); }, 30000 + i * 200);
     // Remove from DOM after animation
-    setTimeout(() => { banner.remove(); }, 8500 + i * 200);
+    setTimeout(() => { banner.remove(); }, 30500 + i * 200);
   });
 }
 
