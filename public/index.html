@@ -936,9 +936,18 @@ function checkAbductions(standings) {
   for (const p of standings) {
     for (const t of p.teams) {
       if (t.abductedFrom) {
+        // Find who originally owned the abducted team
+        let originalOwner = 'their owner';
+        for (const other of standings) {
+          if (other.name === p.name) continue;
+          for (const ot of other.teams) {
+            if (ot.name === t.name || ot.abductedFrom === t.name) { originalOwner = other.name; break; }
+          }
+          if (originalOwner !== 'their owner') break;
+        }
         const key = `${p.name}:${t.abductedFrom}:${t.name}`;
         if (!seen.includes(key)) {
-          newAbductions.push({ player: p.name, from: t.abductedFrom, to: t.name });
+          newAbductions.push({ player: p.name, from: t.abductedFrom, to: t.name, originalOwner });
           seen.push(key);
         }
       }
@@ -968,8 +977,8 @@ function showAbductionBanners(abductions) {
     banner.innerHTML = `
       <div class="abd-banner-content">
         <span class="abd-banner-icon">🏴‍☠️🚨</span>
-        <span class="abd-banner-text"><strong>${esc(abd.player)}</strong> abducted <strong>${esc(abd.to)}</strong> from their owner</span>
-        <span class="abd-banner-sub">${esc(abd.from)} lost but covered — ${esc(abd.player)} takes ${esc(abd.to)}</span>
+        <span class="abd-banner-text"><strong>${esc(abd.player)}</strong> abducted <strong>${esc(abd.to)}</strong> from <strong>${esc(abd.originalOwner)}</strong></span>
+        <span class="abd-banner-sub">${esc(abd.from)} lost but covered the spread</span>
       </div>
       <button class="abd-banner-close" onclick="this.closest('.abd-banner').classList.add('abd-dismiss');setTimeout(()=>this.closest('.abd-banner')?.remove(),400)">&times;</button>
     `;
