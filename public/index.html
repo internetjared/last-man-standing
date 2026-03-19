@@ -221,6 +221,7 @@ html { overscroll-behavior-y: none; }
 }
 .survival-tag.safe { background: var(--green-bg); color: var(--green); }
 .survival-tag.abduction { background: var(--yellow-bg); color: var(--yellow); }
+.survival-tag.stolen-tag { background: rgba(239,68,68,0.1); color: var(--red); }
 .survival-tag.elim { background: var(--red-bg); color: var(--red); }
 .cover-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
 .cover-dot.covering { background: var(--green); }
@@ -404,6 +405,7 @@ html { overscroll-behavior-y: none; }
 }
 .survival-badge.safe { background: var(--green-bg); color: var(--green); }
 .survival-badge.abduction { background: var(--yellow-bg); color: var(--yellow); }
+.survival-badge.stolen-badge { background: rgba(239,68,68,0.1); color: var(--red); }
 .survival-badge.elim { background: var(--red-bg); color: var(--red); }
 
 .game-card { cursor: pointer; }
@@ -652,20 +654,21 @@ function teamRow(t, hasScores, isFinal, isLive) {
   
   if (isFinal) {
     if (t.survived === false) {
+      // Lost and didn't cover — eliminated
       winClass = ' loser';
       survivalTag = '<span class="survival-tag elim">OUT</span>';
-    } else if (t.survived === true && t.won && t.survivalReason && t.survivalReason.includes('didn\'t cover')) {
-      // Winner but got abducted (won the game but loser covered the spread — team stolen)
+    } else if (t.won && t.survivalReason && t.survivalReason.includes('didn\'t cover')) {
+      // Louisville scenario: won the game but didn't cover — team gets stolen
       winClass = ' winner';
-      survivalTag = '<span class="survival-tag abduction">\u{1F3F4}\u200D\u2620\uFE0F\u{1F6A8}</span>';
-    } else if (t.survived === true && t.won) {
+      survivalTag = '<span class="survival-tag stolen-tag">W \u{1F3F4}\u200D\u2620\uFE0F</span>';
+    } else if (t.won) {
+      // Clean win + covered
       winClass = ' winner';
       survivalTag = '<span class="survival-tag safe">W</span>';
-    } else if (t.survived === true && !t.won) {
-      winClass = ' winner';
-      survivalTag = '<span class="survival-tag abduction">\u{1F3F4}\u200D\u2620\uFE0F\u{1F6A8}</span>';
-    } else if (t.won === true) {
-      winClass = ' winner';
+    } else if (!t.won && t.survived === true) {
+      // South Florida scenario: lost the game but covered the spread — abductor
+      winClass = ' loser';
+      survivalTag = '<span class="survival-tag abduction">ABD \u{1F3F4}\u200D\u2620\uFE0F</span>';
     } else if (t.won === false) {
       winClass = ' loser';
     }
@@ -881,10 +884,12 @@ function renderGameDetail(g) {
   // Cover/survival status per team
   function coverOrSurvival(t, isT1) {
     if (g.isFinal) {
-      if (t.survived === true && t.won) {
+      if (t.won && t.survivalReason && t.survivalReason.includes('didn\'t cover')) {
+        return `<span class="survival-badge stolen-badge">W \u{1F3F4}\u200D\u2620\uFE0F</span>`;
+      } else if (t.won) {
         return `<span class="survival-badge safe">W</span>`;
-      } else if (t.survived === true && !t.won) {
-        return `<span class="survival-badge abduction">ABD</span>`;
+      } else if (!t.won && t.survived === true) {
+        return `<span class="survival-badge abduction">ABD \u{1F3F4}\u200D\u2620\uFE0F</span>`;
       } else if (t.survived === false) {
         return `<span class="survival-badge elim">OUT</span>`;
       }
