@@ -442,6 +442,7 @@ function buildStandings(allGames, rosterPlayers) {
   const playing = new Map(); // norm(team) -> { info, covering, margin }
   const survived = new Map(); // norm(team) -> reason (won or abduction)
   const abductions = new Map();
+  const stolen = new Map(); // norm(winnerTeam) -> loserOwner who stole it
   
   // Build team→game lookup for spread/opponent/seed/time data
   const teamGameInfo = new Map(); // norm(team) -> { spread, opponent, seed, opponentSeed, time, section }
@@ -496,6 +497,7 @@ function buildStandings(allGames, rosterPlayers) {
           // Abduction — loser covered the spread, inherits the winning team
           abductions.set(norm(loser.team), winner.team);
           survived.set(norm(loser.team), loserStatus.reason);
+          stolen.set(norm(winner.team), loser.owner); // mark winning team as stolen by loser's owner
         } else if (loserStatus.survived === false) {
           eliminated.set(norm(loser.team), loserStatus.reason);
         }
@@ -546,18 +548,18 @@ function buildStandings(allGames, rosterPlayers) {
         const aElim = isEliminated(optA.trim(), eliminated);
         const bElim = isEliminated(optB.trim(), eliminated);
         if (aElim && !bElim) {
-          return resolveTeamStatus(optB.trim(), eliminated, playing, survived, resolvedAbductions, null, teamGameInfo);
+          return resolveTeamStatus(optB.trim(), eliminated, playing, survived, resolvedAbductions, stolen, null, teamGameInfo);
         }
         if (bElim && !aElim) {
-          return resolveTeamStatus(optA.trim(), eliminated, playing, survived, resolvedAbductions, null, teamGameInfo);
+          return resolveTeamStatus(optA.trim(), eliminated, playing, survived, resolvedAbductions, stolen, null, teamGameInfo);
         }
         return { name: teamName, status: 'alive', gameInfo: 'Play-in pending' };
       }
 
-      return resolveTeamStatus(teamName, eliminated, playing, survived, resolvedAbductions, null, teamGameInfo);
+      return resolveTeamStatus(teamName, eliminated, playing, survived, resolvedAbductions, stolen, null, teamGameInfo);
     });
 
-    const alive = teamDetails.filter(t => t.status !== 'eliminated').length;
+    const alive = teamDetails.filter(t => t.status !== 'eliminated' && t.status !== 'stolen').length;
     return { name, teams: teamDetails, alive };
   });
 
@@ -576,7 +578,7 @@ function isEliminated(teamName, eliminatedMap) {
   return false;
 }
 
-function resolveTeamStatus(teamName, eliminated, playing, survived, abductions, extraInfo, teamGameInfo) {
+function resolveTeamStatus(teamName, eliminated, playing, survived, abductions, stolenMap, extraInfo, teamGameInfo) {
   // Look up game context for this team
   const gi = findTeamGameInfo(teamName, teamGameInfo);
   const gameCtx = gi ? { spread: gi.spread, opponent: gi.opponent, seed: gi.seed, opponentSeed: gi.opponentSeed, time: gi.time, section: gi.section, opponentOwner: gi.opponentOwner, espnId: gi.espnId || null, gameIsLive: gi.gameIsLive || false, gameIsFinal: gi.gameIsFinal || false } : {};
@@ -584,6 +586,14 @@ function resolveTeamStatus(teamName, eliminated, playing, survived, abductions, 
   for (const [key, info] of eliminated) {
     if (teamsMatch(teamName, key)) {
       return { name: teamName, status: 'eliminated', gameInfo: info, ...gameCtx };
+    }
+  }
+  // Check if this team was stolen (won the game but owner lost it to abduction)
+  if (stolenMap) {
+    for (const [key, thief] of stolenMap) {
+      if (teamsMatch(teamName, key)) {
+        return { name: teamName, status: 'stolen', gameInfo: `Stolen by ${thief}`, stolenBy: thief, ...gameCtx };
+      }
     }
   }
   for (const [key, data] of playing) {
@@ -595,7 +605,6 @@ function resolveTeamStatus(teamName, eliminated, playing, survived, abductions, 
     if (teamsMatch(teamName, key)) {
       const abductedTo = abductions ? abductions.get(key) : null;
       const displayName = abductedTo || teamName;
-      // abductedFrom = the original team name this player started with
       const abductedFrom = abductedTo ? teamName : null;
       const gameInfo = abductedTo
         ? `${info} → now riding ${abductedTo}`

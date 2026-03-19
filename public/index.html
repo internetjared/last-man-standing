@@ -133,6 +133,8 @@ html { overscroll-behavior-y: none; }
 .team-chip.alive, .team-chip.upcoming { background: rgba(107,107,128,0.08); color: var(--dim); }
 .team-chip.eliminated { background: var(--red-bg); color: var(--red); opacity: 0.6; }
 .team-chip.eliminated .chip-team { text-decoration: line-through; }
+.team-chip.stolen { background: rgba(239,68,68,0.06); }
+.team-chip.stolen .chip-team { text-decoration: line-through; opacity: 0.5; }
 .team-chip.playing { transition: background 1s ease, color 0.5s ease; }
 .chip-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
 .survived .chip-dot { display: none; }
@@ -533,7 +535,7 @@ function renderStandings(standings) {
 function playerCard(p) {
   const dead = p.alive === 0;
   const sortedTeams = [...p.teams].sort((a, b) => {
-    const o = { playing: 0, alive: 1, upcoming: 2, eliminated: 3 };
+    const o = { playing: 0, alive: 1, upcoming: 2, stolen: 3, eliminated: 4 };
     return (o[a.status] ?? 2) - (o[b.status] ?? 2);
   });
   return `<div class="player-card${dead ? ' eliminated' : ''}">
@@ -547,7 +549,7 @@ function playerCard(p) {
         let chipStatus = t.status;
         // survived = won their game (green check). alive/upcoming = hasn't played yet (gray).
         // "Won (didn't cover)" = team got hijacked via abduction — show as stolen
-        if (t.status === 'alive' && t.gameInfo && t.gameInfo.includes('Won') && t.gameInfo.includes('didn\'t cover')) chipStatus = 'stolen';
+        if (t.status === 'stolen') chipStatus = 'stolen';
         else if (t.status === 'alive' && t.gameInfo && (t.gameInfo.includes('Won') || t.gameInfo.includes('Abduction'))) chipStatus = 'survived';
         else if (t.status === 'alive') chipStatus = 'upcoming';
         // Dynamic background for live games based on cover margin
@@ -584,7 +586,7 @@ function playerCard(p) {
           ${chipStatus === 'survived' ? '<span class="chip-check">&#10003;</span>' : chipStatus === 'stolen' ? '<span class="chip-stolen">\u{1F3F4}\u200D\u2620\uFE0F</span>' : `<div class="chip-dot"${t.status === 'playing' && t.margin != null ? ' style="background:currentColor"' : ''}></div>`}
           <div class="chip-main">
             <span class="chip-team">${chipStatus === 'stolen' ? '<s>' + esc(t.name) + '</s>' : esc(t.name)}</span>
-            ${chipStatus === 'stolen' ? `<div class="chip-stolen-info">stolen by ${esc(t.opponentOwner || '?')}</div>` : ''}
+            ${chipStatus === 'stolen' ? `<div class="chip-stolen-info">stolen by ${esc(t.stolenBy || t.opponentOwner || '?')}</div>` : ''}
             ${isAbducted ? `<div class="chip-abducted-from">was ${esc(t.abductedFrom)}</div>` : ''}
             ${!isAbducted && chipStatus !== 'stolen' && vsLine ? `<div class="chip-vs">${vsLine}</div>` : ''}
             ${t.status === 'playing' && t.gameInfo ? `<div class="chip-info">${esc(t.gameInfo)}</div>` : ''}
