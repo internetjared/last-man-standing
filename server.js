@@ -444,6 +444,15 @@ function buildStandings(allGames, rosterPlayers) {
     const t1n = norm(g.team1.team), t2n = norm(g.team2.team);
     teamGameInfo.set(t1n, { spread: g.team1.spread, opponent: g.team2.team, seed: g.team1.seed, opponentSeed: g.team2.seed, time: g.statusDetail, section: g.section, opponentOwner: g.team2.owner });
     teamGameInfo.set(t2n, { spread: g.team2.spread, opponent: g.team1.team, seed: g.team2.seed, opponentSeed: g.team1.seed, time: g.statusDetail, section: g.section, opponentOwner: g.team1.owner });
+    // Also add aliases so roster names can find game data
+    for (const [mapKey] of [[t1n, g.team1], [t2n, g.team2]]) {
+      const group = getAliasGroup(mapKey);
+      if (group && ALIASES[group]) {
+        const val = teamGameInfo.get(mapKey);
+        ALIASES[group].forEach(a => { if (!teamGameInfo.has(norm(a))) teamGameInfo.set(norm(a), val); });
+        if (!teamGameInfo.has(norm(group))) teamGameInfo.set(norm(group), val);
+      }
+    }
   }
   
   for (const g of allGames) {
