@@ -305,6 +305,7 @@ function findPlayInGames(espnGames) {
         const t1isHome = teamsMatch(teamA, eg.home.name);
         playInGames.push({
           section: 'Play-In',
+          isPlayIn: true,
           team1: {
             team: teamA, owner: null, seed: '',
             spread: '', score: t1isHome ? eg.home.score : eg.away.score,
@@ -466,6 +467,17 @@ function buildStandings(allGames, rosterPlayers) {
   
   for (const g of allGames) {
     if (g.isFinal) {
+      // Skip play-in games for survival tracking — winners already advanced,
+      // they should show as "upcoming" (gray) until their first-round game starts.
+      // Losers of play-ins DO get eliminated.
+      if (g.isPlayIn) {
+        const loser = g.team1.won ? g.team2 : g.team2.won ? g.team1 : null;
+        if (loser) {
+          eliminated.set(norm(loser.team), `Lost play-in ${loser.score}-${(g.team1.won ? g.team1 : g.team2).score}`);
+        }
+        continue; // Don't add play-in winners to survived — they haven't played in the real tournament yet
+      }
+
       const t1status = getSurvivalStatus(g.team1.score, g.team2.score, g.team1.spread);
       const t2status = getSurvivalStatus(g.team2.score, g.team1.score, g.team2.spread);
       
@@ -486,9 +498,6 @@ function buildStandings(allGames, rosterPlayers) {
           survived.set(norm(loser.team), loserStatus.reason);
         } else if (loserStatus.survived === false) {
           eliminated.set(norm(loser.team), loserStatus.reason);
-        } else {
-          // No spread data (play-in games) — straight elimination
-          eliminated.set(norm(loser.team), `Lost ${loser.score}-${winner.score}`);
         }
       }
     }
