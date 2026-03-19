@@ -269,6 +269,8 @@ html { overscroll-behavior-y: none; }
 .bracket-team.winner { color: var(--green); }
 .bracket-team.loser { opacity: 0.4; }
 .bracket-team.abducted .bracket-owner { background: var(--yellow-bg); color: var(--yellow); }
+.bracket-time { font-size: 8px; color: rgba(255,255,255,0.35); text-align: center; padding: 1px 0; letter-spacing: 0.3px; }
+.bracket-slot.live .bracket-time { color: var(--yellow); opacity: 0.8; }
 .bracket-spread { font-size: 9px; font-weight: 700; padding: 1px 4px; border-radius: 3px; margin-left: 2px; }
 .bracket-spread.fav { color: var(--red); opacity: 0.7; }
 .bracket-spread.dog { color: var(--green); opacity: 0.7; }
@@ -723,8 +725,16 @@ function renderBracket(data) {
 
       round.games.forEach(g => {
         const hasScores = g.isFinal || g.isLive;
+        let timeLabel = '';
+        if (g.isFinal) timeLabel = 'Final';
+        else if (g.isLive) timeLabel = g.statusDetail || 'Live';
+        else if (g.statusDetail) {
+          const m = g.statusDetail.match(/(\d{1,2}:\d{2}\s*[AP]M)/i);
+          timeLabel = m ? m[1] : '';
+        }
         html += `<div class="bracket-game"><div class="bracket-slot${g.isLive ? ' live' : ''}">`;
         html += bracketTeamRow(g.team1, g, hasScores);
+        if (timeLabel) html += `<div class="bracket-time">${esc(timeLabel)}</div>`;
         html += bracketTeamRow(g.team2, g, hasScores);
         html += '</div></div>';
       });
