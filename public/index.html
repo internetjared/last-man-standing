@@ -974,6 +974,20 @@ function showAbductionBanners(abductions) {
       <button class="abd-banner-close" onclick="this.closest('.abd-banner').classList.add('abd-dismiss');setTimeout(()=>this.closest('.abd-banner')?.remove(),400)">&times;</button>
     `;
     banner.style.animationDelay = `${i * 200}ms`;
+    // Swipe up to dismiss
+    let startY = 0, curY = 0, swiping = false;
+    banner.addEventListener('touchstart', e => { startY = e.touches[0].clientY; curY = startY; swiping = true; }, {passive: true});
+    banner.addEventListener('touchmove', e => {
+      if (!swiping) return;
+      curY = e.touches[0].clientY;
+      const dy = curY - startY;
+      if (dy < 0) banner.style.transform = `translateY(${dy}px)`;
+    }, {passive: true});
+    banner.addEventListener('touchend', () => {
+      if (!swiping) return; swiping = false;
+      if (startY - curY > 40) { banner.classList.add('abd-dismiss'); setTimeout(() => banner.remove(), 400); }
+      else { banner.style.transform = ''; }
+    });
     container.appendChild(banner);
     
     // Auto-dismiss after 30 seconds
