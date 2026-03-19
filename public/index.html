@@ -309,10 +309,10 @@ function renderStandings(standings) {
         <div class="alive-count c${p.alive}">${p.alive}/4</div>
       </div>
       <div class="team-list">
-        ${sortedTeams.map(t => `<div class="team-chip ${t.status}">
+        ${sortedTeams.map(t => `<div class="team-chip ${t.status}${t.abductedFrom ? ' abducted' : ''}">
           <div class="chip-dot"></div>
           <div>
-            <div>${esc(t.name)}</div>
+            <div>${esc(t.name)}${t.abductedFrom ? ` <span style="font-size:9px;opacity:0.6">(was ${esc(t.abductedFrom)})</span>` : ''}</div>
             ${t.gameInfo ? `<div class="chip-info">${esc(t.gameInfo)}</div>` : ''}
           </div>
         </div>`).join('')}

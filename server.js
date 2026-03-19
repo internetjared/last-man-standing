@@ -433,35 +433,41 @@ function getSurvivalStatus(teamScore, oppScore, spreadStr) {
 
 // --- Build Standings ---
 function buildStandings(allGames, rosterPlayers) {
-  const eliminated = new Map(); // norm(team) -> { info, reason }
+  const eliminated = new Map(); // norm(team) -> reason
   const playing = new Map(); // norm(team) -> live info string
   const survived = new Map(); // norm(team) -> reason (won or abduction)
+  // Track abductions: norm(loserTeam) -> winnerTeamName (loser's owner inherits the winner's team)
+  const abductions = new Map();
   
   for (const g of allGames) {
     if (g.isFinal) {
-      // Check survival for both teams using spread logic
       const t1status = getSurvivalStatus(g.team1.score, g.team2.score, g.team1.spread);
       const t2status = getSurvivalStatus(g.team2.score, g.team1.score, g.team2.spread);
       
-      if (t1status.survived === false) {
-        eliminated.set(norm(g.team1.team), t1status.reason);
-      } else if (t1status.survived === true) {
-        survived.set(norm(g.team1.team), t1status.reason);
-      } else if (g.team1.won === false) {
-        // No spread data (play-in games) — straight win/loss
-        eliminated.set(norm(g.team1.team), `Lost ${g.team1.score}-${g.team2.score}`);
+      // Determine winner and loser
+      const winner = g.team1.won ? g.team1 : g.team2.won ? g.team2 : null;
+      const loser = g.team1.won ? g.team2 : g.team2.won ? g.team1 : null;
+      const winnerStatus = g.team1.won ? t1status : t2status;
+      const loserStatus = g.team1.won ? t2status : t1status;
+      
+      if (winner) {
+        survived.set(norm(winner.team), winnerStatus.reason || 'Won');
       }
       
-      if (t2status.survived === false) {
-        eliminated.set(norm(g.team2.team), t2status.reason);
-      } else if (t2status.survived === true) {
-        survived.set(norm(g.team2.team), t2status.reason);
-      } else if (g.team2.won === false) {
-        eliminated.set(norm(g.team2.team), `Lost ${g.team2.score}-${g.team1.score}`);
+      if (loser) {
+        if (loserStatus.survived === true) {
+          // Abduction — loser covered the spread, inherits the winning team
+          abductions.set(norm(loser.team), winner.team);
+          survived.set(norm(loser.team), loserStatus.reason);
+        } else if (loserStatus.survived === false) {
+          eliminated.set(norm(loser.team), loserStatus.reason);
+        } else {
+          // No spread data (play-in games) — straight elimination
+          eliminated.set(norm(loser.team), `Lost ${loser.score}-${winner.score}`);
+        }
       }
     }
     if (g.isLive) {
-      // Show live spread status
       const t1live = checkCover(g.team1.score, g.team2.score, g.team1.spread);
       const t2live = checkCover(g.team2.score, g.team1.score, g.team2.spread);
       const t1tag = t1live ? (t1live.covered ? ' (covering)' : ' (not covering)') : '';
@@ -473,25 +479,22 @@ function buildStandings(allGames, rosterPlayers) {
 
   const standings = Object.entries(rosterPlayers).map(([name, teams]) => {
     const teamDetails = teams.map(teamName => {
-      // Handle play-in slash picks: "Texas / NC State" or "Miami (OH) / SMU"
+      // Handle play-in slash picks
       const slashMatch = teamName.match(/^(.+?)\s*\/\s*(.+)$/);
       if (slashMatch) {
         const [, optA, optB] = slashMatch;
-        // Check if either team won their play-in
         const aElim = isEliminated(optA.trim(), eliminated);
         const bElim = isEliminated(optB.trim(), eliminated);
-        // If one is eliminated, the other won the play-in
         if (aElim && !bElim) {
-          return resolveTeamStatus(optB.trim(), eliminated, playing, survived, null);
+          return resolveTeamStatus(optB.trim(), eliminated, playing, survived, abductions, null);
         }
         if (bElim && !aElim) {
-          return resolveTeamStatus(optA.trim(), eliminated, playing, survived, null);
+          return resolveTeamStatus(optA.trim(), eliminated, playing, survived, abductions, null);
         }
-        // Both still playing or game not found — show combined
         return { name: teamName, status: 'alive', gameInfo: 'Play-in pending' };
       }
 
-      return resolveTeamStatus(teamName, eliminated, playing, survived, null);
+      return resolveTeamStatus(teamName, eliminated, playing, survived, abductions, null);
     });
 
     const alive = teamDetails.filter(t => t.status !== 'eliminated').length;
@@ -513,7 +516,7 @@ function isEliminated(teamName, eliminatedMap) {
   return false;
 }
 
-function resolveTeamStatus(teamName, eliminated, playing, survived, extraInfo) {
+function resolveTeamStatus(teamName, eliminated, playing, survived, abductions, extraInfo) {
   for (const [key, info] of eliminated) {
     if (teamsMatch(teamName, key)) {
       return { name: teamName, status: 'eliminated', gameInfo: info };
@@ -526,7 +529,13 @@ function resolveTeamStatus(teamName, eliminated, playing, survived, extraInfo) {
   }
   for (const [key, info] of survived) {
     if (teamsMatch(teamName, key)) {
-      return { name: teamName, status: 'alive', gameInfo: extraInfo ? `${extraInfo} · ${info}` : info };
+      // Check if this team was abducted (lost but covered → now riding the winner)
+      const abductedTo = abductions ? abductions.get(key) : null;
+      const displayName = abductedTo || teamName;
+      const gameInfo = abductedTo
+        ? `${info} → now riding ${abductedTo}`
+        : (extraInfo ? `${extraInfo} · ${info}` : info);
+      return { name: displayName, status: 'alive', gameInfo, abductedFrom: abductedTo ? teamName : null };
     }
   }
   return { name: teamName, status: 'alive', gameInfo: extraInfo };
@@ -544,17 +553,19 @@ function buildBracketData(games, rosterPlayers) {
 
   function getAdvancer(game) {
     if (!game || !game.isFinal) return null;
-    if (game.team1.won) {
-      let owner = game.team1.owner;
-      if (game.team2.survived === true && !game.team2.won) owner = game.team2.owner;
-      return { name: game.team1.name, seed: game.team1.seed, owner, abducted: owner !== game.team1.owner };
+    const winner = game.team1.won ? game.team1 : game.team2.won ? game.team2 : null;
+    const loser = game.team1.won ? game.team2 : game.team2.won ? game.team1 : null;
+    if (!winner) return null;
+    // Abduction: if the loser survived (covered the spread), the LOSER inherits the winning TEAM
+    // The loser's owner now rides the winning team forward
+    let owner = winner.owner;
+    let abducted = false;
+    if (loser && loser.survived === true) {
+      // Loser covered — loser's owner takes the winning team
+      owner = loser.owner;
+      abducted = true;
     }
-    if (game.team2.won) {
-      let owner = game.team2.owner;
-      if (game.team1.survived === true && !game.team1.won) owner = game.team1.owner;
-      return { name: game.team2.name, seed: game.team2.seed, owner, abducted: owner !== game.team2.owner };
-    }
-    return null;
+    return { name: winner.name, seed: winner.seed, owner, abducted };
   }
 
   function buildRegionRounds(r1games) {
@@ -682,18 +693,25 @@ app.get('/api/data', async (req, res) => {
         const slashMatch = t.match(/^(.+?)\s*\/\s*(.+)$/);
         const teamNames = slashMatch ? [slashMatch[1].trim(), slashMatch[2].trim()] : [t];
         for (const tn of teamNames) {
-          teamToOwner[tn.toLowerCase()] = player;
-          const group = getAliasGroup(tn);
-          if (group) group.forEach(a => { teamToOwner[a] = player; });
+          teamToOwner[norm(tn)] = player;
+          const group = getAliasGroup(norm(tn));
+          if (group && ALIASES[group]) {
+            teamToOwner[norm(group)] = player;
+            ALIASES[group].forEach(a => { teamToOwner[norm(a)] = player; });
+          }
         }
       }
     }
     for (const g of allGames) {
       if (!g.team1.owner && g.team1.team) {
-        g.team1.owner = teamToOwner[g.team1.team.toLowerCase()] || null;
+        const n = norm(g.team1.team);
+        const group = getAliasGroup(n);
+        g.team1.owner = teamToOwner[n] || (group ? teamToOwner[norm(group)] : null) || null;
       }
       if (!g.team2.owner && g.team2.team) {
-        g.team2.owner = teamToOwner[g.team2.team.toLowerCase()] || null;
+        const n = norm(g.team2.team);
+        const group = getAliasGroup(n);
+        g.team2.owner = teamToOwner[n] || (group ? teamToOwner[norm(group)] : null) || null;
       }
     }
 
