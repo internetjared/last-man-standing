@@ -547,6 +547,18 @@ function buildStandings(allGames, rosterPlayers) {
         const [, optA, optB] = slashMatch;
         const aElim = isEliminated(optA.trim(), eliminated);
         const bElim = isEliminated(optB.trim(), eliminated);
+        
+        // Find the play-in game between these two to determine winner
+        const playInGame = allGames.find(g => g.isPlayIn && g.isFinal &&
+          ((teamsMatch(optA.trim(), g.team1.team) && teamsMatch(optB.trim(), g.team2.team)) ||
+           (teamsMatch(optB.trim(), g.team1.team) && teamsMatch(optA.trim(), g.team2.team))));
+        
+        if (playInGame) {
+          // Play-in resolved — use the winner, even if they later got eliminated
+          const winner = playInGame.team1.won ? playInGame.team1.team : playInGame.team2.team;
+          return resolveTeamStatus(winner, eliminated, playing, survived, resolvedAbductions, stolen, null, teamGameInfo);
+        }
+        
         if (aElim && !bElim) {
           return resolveTeamStatus(optB.trim(), eliminated, playing, survived, resolvedAbductions, stolen, null, teamGameInfo);
         }
