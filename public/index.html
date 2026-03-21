@@ -611,16 +611,28 @@ function renderGames(data) {
     html += live.map(g => gameCard(g, 'live')).join('');
   }
   if (upcoming?.length) {
-    // Group by section (Thursday / Friday)
-    const thu = upcoming.filter(g => g.section === 'Thursday');
-    const fri = upcoming.filter(g => g.section === 'Friday');
-    if (thu.length) {
-      html += '<div class="section-label">Thursday</div>';
-      html += thu.map(g => gameCard(g, 'upcoming')).join('');
+    // Group by section dynamically
+    const sectionOrder = ['Thursday', 'Friday', 'Saturday', 'Sunday', 'Sweet 16', 'Elite 8', 'Final Four', 'Championship'];
+    const sections = {};
+    upcoming.forEach(g => {
+      const s = g.section || 'Upcoming';
+      if (!sections[s]) sections[s] = [];
+      sections[s].push(g);
+    });
+    // Render in order, then any remaining
+    const rendered = new Set();
+    for (const s of sectionOrder) {
+      if (sections[s]?.length) {
+        html += '<div class="section-label">' + s + '</div>';
+        html += sections[s].map(g => gameCard(g, 'upcoming')).join('');
+        rendered.add(s);
+      }
     }
-    if (fri.length) {
-      html += '<div class="section-label">Friday</div>';
-      html += fri.map(g => gameCard(g, 'upcoming')).join('');
+    for (const [s, games] of Object.entries(sections)) {
+      if (!rendered.has(s)) {
+        html += '<div class="section-label">' + s + '</div>';
+        html += games.map(g => gameCard(g, 'upcoming')).join('');
+      }
     }
   }
   if (completed?.length) {
