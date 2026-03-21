@@ -254,6 +254,54 @@ function parseScheduleSheet(rows) {
       });
     }
 
+    // Third column group (cols 9-11) — Round 2+
+    const r2t1 = (row[10] || '').trim();
+    const r2t2 = (row2[10] || '').trim();
+    if (r2t1 && r2t2) {
+      const t1 = extractTeamAndOwner(r2t1);
+      const t2 = extractTeamAndOwner(r2t2);
+      const s1raw = (row[11] || '').trim();
+      const s2raw = (row2[11] || '').trim();
+      const { spread1, spread2 } = deriveSpreads(s1raw, s2raw);
+      games.push({
+        section: 'Saturday',
+        team1: { ...t1, seed: (row[9] || '').trim(), spread: spread1 },
+        team2: { ...t2, seed: (row2[9] || '').trim(), spread: spread2 },
+      });
+    }
+
+    // Fourth column group (cols 13-15) — Sweet 16+
+    const r3t1 = (row[14] || '').trim();
+    const r3t2 = (row2[14] || '').trim();
+    if (r3t1 && r3t2) {
+      const t1 = extractTeamAndOwner(r3t1);
+      const t2 = extractTeamAndOwner(r3t2);
+      const s1raw = (row[15] || '').trim();
+      const s2raw = (row2[15] || '').trim();
+      const { spread1, spread2 } = deriveSpreads(s1raw, s2raw);
+      games.push({
+        section: 'Sweet 16',
+        team1: { ...t1, seed: (row[13] || '').trim(), spread: spread1 },
+        team2: { ...t2, seed: (row2[13] || '').trim(), spread: spread2 },
+      });
+    }
+
+    // Fifth column group (cols 17-19) — Final Four+
+    const r4t1 = (row[18] || '').trim();
+    const r4t2 = (row2[18] || '').trim();
+    if (r4t1 && r4t2) {
+      const t1 = extractTeamAndOwner(r4t1);
+      const t2 = extractTeamAndOwner(r4t2);
+      const s1raw = (row[19] || '').trim();
+      const s2raw = (row2[19] || '').trim();
+      const { spread1, spread2 } = deriveSpreads(s1raw, s2raw);
+      games.push({
+        section: 'Final Four',
+        team1: { ...t1, seed: (row[17] || '').trim(), spread: spread1 },
+        team2: { ...t2, seed: (row2[17] || '').trim(), spread: spread2 },
+      });
+    }
+
     i++; // consumed pair
   }
   return games;
