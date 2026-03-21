@@ -731,11 +731,37 @@ function buildBracketData(games, rosterPlayers) {
       for (let i = 0; i < prev.length; i += 2) {
         const adv1 = getAdvancer(prev[i]);
         const adv2 = prev[i + 1] ? getAdvancer(prev[i + 1]) : null;
-        next.push({
+        
+        let game = {
           team1: adv1 || { name: 'TBD', seed: '', owner: null },
           team2: adv2 || { name: 'TBD', seed: '', owner: null },
-          isFinal: false, isLive: false, statusDetail: ''
-        });
+          isFinal: false, isLive: false, statusDetail: '', espnId: null
+        };
+
+        // Overlay real game data from R2+ if we have it (scores, spreads, live status)
+        if (adv1 && adv2) {
+          const key = norm(adv1.name) + '|' + norm(adv2.name);
+          const realGame = r2Lookup[key];
+          if (realGame) {
+            // Preserve advancer ownership (abduction info) but take scores/spreads/status from real game
+            game.team1.score = realGame.team1.score;
+            game.team1.spread = realGame.team1.spread || game.team1.spread;
+            game.team1.won = realGame.team1.won;
+            game.team1.survived = realGame.team1.survived;
+            game.team1.survivalReason = realGame.team1.survivalReason;
+            game.team2.score = realGame.team2.score;
+            game.team2.spread = realGame.team2.spread || game.team2.spread;
+            game.team2.won = realGame.team2.won;
+            game.team2.survived = realGame.team2.survived;
+            game.team2.survivalReason = realGame.team2.survivalReason;
+            game.isFinal = realGame.isFinal;
+            game.isLive = realGame.isLive;
+            game.statusDetail = realGame.statusDetail;
+            game.espnId = realGame.espnId;
+          }
+        }
+
+        next.push(game);
       }
       rounds.push({ name: rName, games: next });
       prev = next;
@@ -743,9 +769,23 @@ function buildBracketData(games, rosterPlayers) {
     return rounds;
   }
 
+  // Separate games by round — R1 (Thursday/Friday) vs R2+ (Saturday, Sweet 16, etc.)
+  const r1Games = games.filter(g => g.section === 'Thursday' || g.section === 'Friday');
+  const r2PlusGames = games.filter(g => g.section !== 'Thursday' && g.section !== 'Friday' && g.section !== 'Play-In');
+
+  // Build lookup for R2+ games by their team matchup, so we can overlay spreads/scores
+  const r2Lookup = {};
+  for (const g of r2PlusGames) {
+    const bg = makeGame(g);
+    const key1 = norm(bg.team1.name || '') + '|' + norm(bg.team2.name || '');
+    const key2 = norm(bg.team2.name || '') + '|' + norm(bg.team1.name || '');
+    r2Lookup[key1] = bg;
+    r2Lookup[key2] = bg;
+  }
+
   // Group R1 games by region
   const regionGames = { East: [], West: [], South: [], Midwest: [] };
-  for (const g of games) {
+  for (const g of r1Games) {
     const bg = makeGame(g);
     const r = bg.region || 'Unknown';
     if (regionGames[r]) regionGames[r].push(bg);
