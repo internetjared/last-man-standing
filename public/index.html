@@ -178,6 +178,13 @@ html { overscroll-behavior-y: none; }
   text-transform: uppercase; letter-spacing: 0.8px; margin: 16px 0 10px;
 }
 .section-label:first-child { margin-top: 4px; }
+.completed-accordion { margin-top: 8px; }
+.accordion-toggle { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 6px; }
+.accordion-toggle::-webkit-details-marker { display: none; }
+.accordion-toggle::before { content: '▸'; font-size: 10px; transition: transform 0.2s ease; }
+details[open] .accordion-toggle::before { transform: rotate(90deg); }
+.completed-count { font-size: 10px; opacity: 0.5; font-weight: 400; }
+.accordion-body { padding-top: 4px; }
 
 .game-card {
   background: var(--card); border: 1px solid var(--card-border);
@@ -636,8 +643,8 @@ function renderGames(data) {
     }
   }
   if (completed?.length) {
-    html += '<div class="section-label">Completed</div>';
-    html += completed.map(g => gameCard(g, 'final')).join('');
+    html += '<details class="completed-accordion"><summary class="section-label accordion-toggle">Completed <span class="completed-count">(' + completed.length + ')</span></summary>';
+    html += '<div class="accordion-body">' + completed.map(g => gameCard(g, 'final')).join('') + '</div></details>';
   }
 
   el.innerHTML = html || '<div class="empty">No games yet</div>';
