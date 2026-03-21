@@ -743,17 +743,22 @@ function buildBracketData(games, rosterPlayers) {
           const key = norm(adv1.name) + '|' + norm(adv2.name);
           const realGame = r2Lookup[key];
           if (realGame) {
+            // Match real game teams to bracket teams by name (order may differ)
+            const t1MatchesReal1 = norm(adv1.name) === norm(realGame.team1.name);
+            const real1 = t1MatchesReal1 ? realGame.team1 : realGame.team2;
+            const real2 = t1MatchesReal1 ? realGame.team2 : realGame.team1;
+            
             // Preserve advancer ownership (abduction info) but take scores/spreads/status from real game
-            game.team1.score = realGame.team1.score;
-            game.team1.spread = realGame.team1.spread || game.team1.spread;
-            game.team1.won = realGame.team1.won;
-            game.team1.survived = realGame.team1.survived;
-            game.team1.survivalReason = realGame.team1.survivalReason;
-            game.team2.score = realGame.team2.score;
-            game.team2.spread = realGame.team2.spread || game.team2.spread;
-            game.team2.won = realGame.team2.won;
-            game.team2.survived = realGame.team2.survived;
-            game.team2.survivalReason = realGame.team2.survivalReason;
+            game.team1.score = real1.score;
+            game.team1.spread = real1.spread || game.team1.spread;
+            game.team1.won = real1.won;
+            game.team1.survived = real1.survived;
+            game.team1.survivalReason = real1.survivalReason;
+            game.team2.score = real2.score;
+            game.team2.spread = real2.spread || game.team2.spread;
+            game.team2.won = real2.won;
+            game.team2.survived = real2.survived;
+            game.team2.survivalReason = real2.survivalReason;
             game.isFinal = realGame.isFinal;
             game.isLive = realGame.isLive;
             game.statusDetail = realGame.statusDetail;
