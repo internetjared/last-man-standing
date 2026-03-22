@@ -919,7 +919,11 @@ app.get('/api/data', async (req, res) => {
     const completed = [
       ...games.filter(g => g.isFinal),
       ...playInGames.filter(g => g.isFinal),
-    ];
+    ].sort((a, b) => {
+      const da = a.date ? new Date(a.date).getTime() : 0;
+      const db = b.date ? new Date(b.date).getTime() : 0;
+      return db - da; // most recent first
+    });
     const livePlayIn = playInGames.filter(g => g.isLive);
 
     res.json({
