@@ -668,12 +668,18 @@ function resolveTeamStatus(teamName, eliminated, playing, survived, abductions, 
       const displayName = abductedTo || teamName;
       const abductedFrom = abductedTo ? teamName : null;
 
+      // If abducted, use the abducted-to team's game context (current round)
+      // instead of the original team's stale R1 context
+      const effectiveCtx = abductedTo
+        ? (() => { const agi = findTeamGameInfo(abductedTo, teamGameInfo); return agi ? { spread: agi.spread, opponent: agi.opponent, seed: agi.seed, opponentSeed: agi.opponentSeed, time: agi.time, section: agi.section, opponentOwner: agi.opponentOwner, espnId: agi.espnId || null, gameIsLive: agi.gameIsLive || false, gameIsFinal: agi.gameIsFinal || false } : gameCtx; })()
+        : gameCtx;
+
       // If this team was abducted into another team, check if that new team
       // has since been eliminated in a later round
       if (abductedTo) {
         for (const [elimKey, elimInfo] of eliminated) {
           if (teamsMatch(abductedTo, elimKey)) {
-            return { name: displayName, status: 'eliminated', gameInfo: elimInfo, abductedFrom, ...gameCtx };
+            return { name: displayName, status: 'eliminated', gameInfo: elimInfo, abductedFrom, ...effectiveCtx };
           }
         }
       }
@@ -681,7 +687,7 @@ function resolveTeamStatus(teamName, eliminated, playing, survived, abductions, 
       const gameInfo = abductedTo
         ? `${info} → now riding ${abductedTo}`
         : (extraInfo ? `${extraInfo} · ${info}` : info);
-      return { name: displayName, status: 'alive', gameInfo, abductedFrom, ...gameCtx };
+      return { name: displayName, status: 'alive', gameInfo, abductedFrom, ...effectiveCtx };
     }
   }
   return { name: teamName, status: 'alive', gameInfo: extraInfo, ...gameCtx };
