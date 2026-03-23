@@ -865,6 +865,9 @@ app.get('/icon-512.png', (req, res) => {
 app.use(express.static(publicDir));
 
 app.get('/api/data', async (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('CDN-Cache-Control', 'no-store');
+  res.set('Vercel-CDN-Cache-Control', 'no-store');
   try {
     const [scheduleRows, rosterRows, espnGames] = await Promise.all([
       getCached('schedule', () => fetchCSV(SCHEDULE_CSV_URL), SHEET_TTL),
