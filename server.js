@@ -883,8 +883,13 @@ app.get('/api/data', async (req, res) => {
     // Get play-in games from ESPN (not on sheet)
     const playInGames = findPlayInGames(espnGames);
     
-    // All games combined for standings
-    const allGames = [...games, ...playInGames];
+    // All games combined for standings — sorted chronologically so later rounds
+    // take priority in teamGameInfo map (newest game context shows in standings)
+    const allGames = [...games, ...playInGames].sort((a, b) => {
+      const da = a.date ? new Date(a.date).getTime() : 0;
+      const db = b.date ? new Date(b.date).getTime() : 0;
+      return da - db;
+    });
     
     // Roster from main sheet
     const rosterPlayers = parseRosterSheet(rosterRows);
