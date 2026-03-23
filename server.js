@@ -666,6 +666,17 @@ function resolveTeamStatus(teamName, eliminated, playing, survived, abductions, 
       const abductedTo = abductions ? abductions.get(key) : null;
       const displayName = abductedTo || teamName;
       const abductedFrom = abductedTo ? teamName : null;
+
+      // If this team was abducted into another team, check if that new team
+      // has since been eliminated in a later round
+      if (abductedTo) {
+        for (const [elimKey, elimInfo] of eliminated) {
+          if (teamsMatch(abductedTo, elimKey)) {
+            return { name: displayName, status: 'eliminated', gameInfo: elimInfo, abductedFrom, ...gameCtx };
+          }
+        }
+      }
+
       const gameInfo = abductedTo
         ? `${info} → now riding ${abductedTo}`
         : (extraInfo ? `${extraInfo} · ${info}` : info);
