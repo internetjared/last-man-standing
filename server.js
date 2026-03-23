@@ -494,22 +494,23 @@ function buildStandings(allGames, rosterPlayers) {
   
   // Build team→game lookup for spread/opponent/seed/time data
   const teamGameInfo = new Map(); // norm(team) -> { spread, opponent, seed, opponentSeed, time, section }
-  // Build team→game lookup — first-round games take priority over play-in games
-  // (play-ins lack spreads/seeds from the sheet and would clobber good data)
+  // Build team→game lookup — latest game with spread data wins (so R2 context
+  // shows instead of R1). Play-ins lack spreads so they won't clobber real rounds.
   for (const g of allGames) {
     const t1n = norm(g.team1.team), t2n = norm(g.team2.team);
     const t1data = { spread: g.team1.spread, opponent: g.team2.team, seed: g.team1.seed, opponentSeed: g.team2.seed, time: g.statusDetail, section: g.section, opponentOwner: g.team2.owner, espnId: g.espnId, gameIsLive: g.isLive, gameIsFinal: g.isFinal };
     const t2data = { spread: g.team2.spread, opponent: g.team1.team, seed: g.team2.seed, opponentSeed: g.team1.seed, time: g.statusDetail, section: g.section, opponentOwner: g.team1.owner, espnId: g.espnId, gameIsLive: g.isLive, gameIsFinal: g.isFinal };
-    // Only set if no existing entry with spread data (prevents play-in from clobbering first-round)
-    if (!teamGameInfo.has(t1n) || !teamGameInfo.get(t1n).spread) teamGameInfo.set(t1n, t1data);
-    if (!teamGameInfo.has(t2n) || !teamGameInfo.get(t2n).spread) teamGameInfo.set(t2n, t2data);
+    // Overwrite with new data if it has spread info (later rounds take priority);
+    // only skip overwrite when new data lacks spread and existing has it (play-in guard)
+    if (t1data.spread || !teamGameInfo.has(t1n) || !teamGameInfo.get(t1n).spread) teamGameInfo.set(t1n, t1data);
+    if (t2data.spread || !teamGameInfo.has(t2n) || !teamGameInfo.get(t2n).spread) teamGameInfo.set(t2n, t2data);
     // Populate aliases
     for (const [mapKey] of [[t1n], [t2n]]) {
       const group = getAliasGroup(mapKey);
       if (group && ALIASES[group]) {
         const val = teamGameInfo.get(mapKey);
-        ALIASES[group].forEach(a => { if (!teamGameInfo.has(norm(a)) || !teamGameInfo.get(norm(a)).spread) teamGameInfo.set(norm(a), val); });
-        if (!teamGameInfo.has(norm(group)) || !teamGameInfo.get(norm(group)).spread) teamGameInfo.set(norm(group), val);
+        ALIASES[group].forEach(a => { if (val.spread || !teamGameInfo.has(norm(a)) || !teamGameInfo.get(norm(a)).spread) teamGameInfo.set(norm(a), val); });
+        if (val.spread || !teamGameInfo.has(norm(group)) || !teamGameInfo.get(norm(group)).spread) teamGameInfo.set(norm(group), val);
       }
     }
   }
