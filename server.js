@@ -310,8 +310,8 @@ function parseScheduleSheet(rows) {
       const overrideKey = [t1.team, t2.team].sort().join(' vs ');
       const override = SPREAD_OVERRIDES[overrideKey];
       if (override) {
-        if (override[t1.team] !== undefined) spread1 = override[t1.team];
-        if (override[t2.team] !== undefined) spread2 = override[t2.team];
+        if (override[t1.team] !== undefined) spread1 = formatSpread(override[t1.team]);
+        if (override[t2.team] !== undefined) spread2 = formatSpread(override[t2.team]);
       }
       games.push({
         section: 'Sweet 16',
