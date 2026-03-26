@@ -462,14 +462,17 @@ function enrichGames(sheetGames, espnGames) {
     game.espnId = espn ? espn.id : null;
     game.region = espn ? espn.region : null;
 
-    // Relabel Sweet 16 (and later rounds) with day-of-week for grouping
+    // Preserve original round for bracket logic before relabeling section for display
+    game.round = game.section; // 'Thursday', 'Friday', 'Saturday', 'Sweet 16', 'Elite 8', etc.
+
+    // Relabel Sweet 16 (and later rounds) with day-of-week for games tab display
     if (game.date && game.section !== 'Play-In') {
       const d = new Date(game.date);
       const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
       const eastern = new Date(d.toLocaleString('en-US', { timeZone: 'America/New_York' }));
       const dayName = days[eastern.getDay()];
-      // Only relabel rounds beyond R2 (Sweet 16+). R1/R2 already have day labels.
-      if (['Sweet 16', 'Elite 8', 'Final Four', 'Championship'].includes(game.section)) {
+      // Only relabel rounds beyond R2 (Sweet 16+). R1/R2 already have day labels from sheet parsing.
+      if (['Sweet 16', 'Elite 8', 'Final Four', 'Championship'].includes(game.round)) {
         game.section = dayName;
       }
     }
@@ -838,9 +841,9 @@ function buildBracketData(games, rosterPlayers) {
     return rounds;
   }
 
-  // Separate games by round — R1 (Thursday/Friday) vs R2+ (Saturday, Sweet 16, etc.)
-  const r1Games = games.filter(g => g.section === 'Thursday' || g.section === 'Friday');
-  const r2PlusGames = games.filter(g => g.section !== 'Thursday' && g.section !== 'Friday' && g.section !== 'Play-In');
+  // Separate games by round — use game.round (original round label, not display section)
+  const r1Games = games.filter(g => g.round === 'Thursday' || g.round === 'Friday');
+  const r2PlusGames = games.filter(g => g.round !== 'Thursday' && g.round !== 'Friday' && g.round !== 'Play-In');
 
   // Build lookup for R2+ games by their team matchup, so we can overlay spreads/scores
   const r2Lookup = {};
