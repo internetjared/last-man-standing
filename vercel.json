@@ -1,14 +1,9 @@
 {
   "version": 2,
   "builds": [
-    { "src": "server.js", "use": "@vercel/node", "config": { "includeFiles": ["public/**"] } }
+    { "src": "server.js", "use": "@vercel/node", "config": { "includeFiles": ["public/**"], "maxDuration": 30 } }
   ],
   "routes": [
     { "src": "/(.*)", "dest": "server.js" }
-  ],
-  "functions": {
-    "server.js": {
-      "maxDuration": 30
-    }
-  }
+  ]
 }
