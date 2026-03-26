@@ -7,6 +7,18 @@ const PORT = 3211;
 // --- Data Sources ---
 // Schedule sheet = single source of truth for matchups, spreads, owners
 const SCHEDULE_CSV_URL = 'https://docs.google.com/spreadsheets/d/1uWC8_h_bMMe1Mfow6MuUsO_gSI5F8eCqFcbUNe5laXA/gviz/tq?tqx=out:csv&gid=1744774619';
+
+// --- DraftKings Spread Overrides (Sweet 16) ---
+// When the sheet hasn't been updated yet, these take precedence.
+// Key: "Team1 vs Team2" (alphabetical), Value: { team: spread }
+const SPREAD_OVERRIDES = {
+  'Iowa vs Nebraska': { 'Iowa': 1.5, 'Nebraska': -1.5 },
+  'Arizona vs Arkansas': { 'Arizona': -7.5, 'Arkansas': 7.5 },
+  "Duke vs St John's": { 'Duke': -6.5, "St John's": 6.5 },
+  'Alabama vs Michigan': { 'Alabama': 9.5, 'Michigan': -9.5 },
+  'Michigan St vs UConn': { 'Michigan St': 1.5, 'UConn': -1.5 },
+  'Iowa St vs Tennessee': { 'Iowa St': -3.5, 'Tennessee': 3.5 },
+};
 // Main sheet for player rosters
 const ROSTER_CSV_URL = 'https://docs.google.com/spreadsheets/d/1uWC8_h_bMMe1Mfow6MuUsO_gSI5F8eCqFcbUNe5laXA/gviz/tq?tqx=out:csv&gid=0';
 // ESPN for scores only
@@ -278,7 +290,14 @@ function parseScheduleSheet(rows) {
       const t2 = extractTeamAndOwner(r3t2);
       const s1raw = (row[15] || '').trim();
       const s2raw = (row2[15] || '').trim();
-      const { spread1, spread2 } = deriveSpreads(s1raw, s2raw);
+      let { spread1, spread2 } = deriveSpreads(s1raw, s2raw);
+      // Apply DraftKings spread overrides (always wins over sheet data)
+      const overrideKey = [t1.team, t2.team].sort().join(' vs ');
+      const override = SPREAD_OVERRIDES[overrideKey];
+      if (override) {
+        if (override[t1.team] !== undefined) spread1 = override[t1.team];
+        if (override[t2.team] !== undefined) spread2 = override[t2.team];
+      }
       games.push({
         section: 'Sweet 16',
         team1: { ...t1, seed: (row[13] || '').trim(), spread: spread1 },
