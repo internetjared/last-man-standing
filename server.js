@@ -462,6 +462,18 @@ function enrichGames(sheetGames, espnGames) {
     game.espnId = espn ? espn.id : null;
     game.region = espn ? espn.region : null;
 
+    // Relabel Sweet 16 (and later rounds) with day-of-week for grouping
+    if (game.date && game.section !== 'Play-In') {
+      const d = new Date(game.date);
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const eastern = new Date(d.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+      const dayName = days[eastern.getDay()];
+      // Only relabel rounds beyond R2 (Sweet 16+). R1/R2 already have day labels.
+      if (['Sweet 16', 'Elite 8', 'Final Four', 'Championship'].includes(game.section)) {
+        game.section = dayName;
+      }
+    }
+
     if (game.isFinal && game.team1.score != null && game.team2.score != null) {
       game.team1.won = game.team1.score > game.team2.score;
       game.team2.won = game.team2.score > game.team1.score;

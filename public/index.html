@@ -644,7 +644,8 @@ function renderGames(data) {
   }
   if (completed?.length) {
     // Group completed games by round/section
-    const roundOrder = ['Sweet 16', 'Saturday', 'Friday', 'Thursday', 'Play-In'];
+    // Most recent first — day names from server relabeling
+    const roundOrder = ['Sunday', 'Saturday', 'Friday', 'Thursday', 'Sweet 16', 'Play-In'];
     const roundGroups = {};
     completed.forEach(g => {
       const s = g.section || 'Other';
