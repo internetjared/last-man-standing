@@ -811,17 +811,24 @@ function renderBracket(data) {
 
   const allRounds = [...roundDefs, 'Final Four', 'Championship'];
 
-  // Determine current/active round: latest round with live games, or latest with upcoming, or latest with final
+  // Determine current/active round: prefer live games, then earliest round with real upcoming games (non-TBD teams)
   let activeRound = allRounds[0];
+  let liveRound = null;
+  let firstUpcomingRound = null;
   for (const rd of allRounds) {
     const regions = roundData[rd];
     const allGames = Object.values(regions).flat();
     const hasLive = allGames.some(g => g && g.isLive);
-    const hasUpcoming = allGames.some(g => g && !g.isFinal && !g.isLive);
+    // "Real" upcoming = has actual team names (not TBD placeholders)
+    const hasRealUpcoming = allGames.some(g => g && !g.isFinal && !g.isLive && g.team1 && g.team1.name && g.team1.name !== 'TBD');
     const hasFinal = allGames.some(g => g && g.isFinal);
-    if (hasLive || hasUpcoming || hasFinal) activeRound = rd;
-    if (hasLive) { activeRound = rd; break; } // Live always wins
+    if (hasLive) liveRound = rd;
+    if (hasRealUpcoming && !firstUpcomingRound) firstUpcomingRound = rd;
+    if (hasFinal) activeRound = rd; // latest completed round as fallback
   }
+  // Priority: live > first real upcoming > latest with results
+  if (liveRound) activeRound = liveRound;
+  else if (firstUpcomingRound) activeRound = firstUpcomingRound;
 
   // Build tab bar
   let html = '<div class="bracket-wrap">';
