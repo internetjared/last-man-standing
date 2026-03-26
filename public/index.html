@@ -643,8 +643,36 @@ function renderGames(data) {
     }
   }
   if (completed?.length) {
-    html += '<details class="completed-accordion"><summary class="section-label accordion-toggle">Completed <span class="completed-count">(' + completed.length + ')</span></summary>';
-    html += '<div class="accordion-body">' + completed.map(g => gameCard(g, 'final')).join('') + '</div></details>';
+    // Group completed games by round/section
+    const roundOrder = ['Sweet 16', 'Saturday', 'Friday', 'Thursday', 'Play-In'];
+    const roundGroups = {};
+    completed.forEach(g => {
+      const s = g.section || 'Other';
+      if (!roundGroups[s]) roundGroups[s] = [];
+      roundGroups[s].push(g);
+    });
+    // Show most recent round expanded, older rounds collapsed
+    let isFirst = true;
+    for (const rnd of roundOrder) {
+      if (!roundGroups[rnd]?.length) continue;
+      const count = roundGroups[rnd].length;
+      if (isFirst) {
+        // Latest round — show expanded
+        html += `<div class="section-label">${rnd} Results</div>`;
+        html += roundGroups[rnd].map(g => gameCard(g, 'final')).join('');
+        isFirst = false;
+      } else {
+        // Older rounds — collapsed accordion
+        html += `<details class="completed-accordion"><summary class="section-label accordion-toggle">${rnd} <span class="completed-count">(${count})</span></summary>`;
+        html += '<div class="accordion-body">' + roundGroups[rnd].map(g => gameCard(g, 'final')).join('') + '</div></details>';
+      }
+      delete roundGroups[rnd];
+    }
+    // Any remaining sections
+    for (const [s, games] of Object.entries(roundGroups)) {
+      html += `<details class="completed-accordion"><summary class="section-label accordion-toggle">${s} <span class="completed-count">(${games.length})</span></summary>`;
+      html += '<div class="accordion-body">' + games.map(g => gameCard(g, 'final')).join('') + '</div></details>';
+    }
   }
 
   el.innerHTML = html || '<div class="empty">No games yet</div>';
@@ -997,31 +1025,48 @@ function renderGameDetail(g) {
   `;
 }
 
-function checkAbductions(standings) {
-  const seen = JSON.parse(localStorage.getItem('lms_abd_seen_v2') || '[]');
-  const newAbductions = [];
+function checkAbductions(standings, games) {
+  const KEY = 'lms_abd_seen_v3';
+  let seen = JSON.parse(localStorage.getItem(KEY) || '[]');
+  
+  // Build set of all current abduction keys to seed localStorage
+  // (prevents banner spam when localStorage is cleared / PWA is re-added)
+  const allAbductionKeys = new Set();
   for (const p of standings) {
     for (const t of p.teams) {
       if (t.abductedFrom) {
-        // Find who originally owned the abducted team
-        let originalOwner = 'their owner';
-        for (const other of standings) {
-          if (other.name === p.name) continue;
-          for (const ot of other.teams) {
-            if (ot.name === t.name || ot.abductedFrom === t.name) { originalOwner = other.name; break; }
-          }
-          if (originalOwner !== 'their owner') break;
-        }
-        const key = `${p.name}:${t.abductedFrom}:${t.name}`;
-        if (!seen.includes(key)) {
-          newAbductions.push({ player: p.name, from: t.abductedFrom, to: t.name, originalOwner });
-          seen.push(key);
-        }
+        allAbductionKeys.add(`${p.name}:${t.abductedFrom}:${t.name}`);
       }
     }
   }
+
+  // If seen list is empty but there are abductions, seed it with all existing ones
+  // (first load / PWA reinstall — don't blast old banners)
+  if (seen.length === 0 && allAbductionKeys.size > 0) {
+    seen = [...allAbductionKeys];
+    localStorage.setItem(KEY, JSON.stringify(seen));
+    return; // No banners on first load
+  }
+
+  // Only show banners for truly NEW abductions (happened since last check)
+  const newAbductions = [];
+  for (const key of allAbductionKeys) {
+    if (!seen.includes(key)) {
+      const [player, from, to] = key.split(':');
+      let originalOwner = 'their owner';
+      for (const other of standings) {
+        if (other.name === player) continue;
+        for (const ot of other.teams) {
+          if (ot.name === to || ot.abductedFrom === to) { originalOwner = other.name; break; }
+        }
+        if (originalOwner !== 'their owner') break;
+      }
+      newAbductions.push({ player, from, to, originalOwner });
+      seen.push(key);
+    }
+  }
   if (newAbductions.length) {
-    localStorage.setItem('lms_abd_seen_v2', JSON.stringify(seen));
+    localStorage.setItem(KEY, JSON.stringify(seen));
     showAbductionBanners(newAbductions);
   }
 }
@@ -1089,7 +1134,7 @@ async function load() {
     const d = await res.json();
     // Cache successful response in localStorage for offline fallback
     try { localStorage.setItem('lms_cache', JSON.stringify({ ts: Date.now(), data: d })); } catch(e) {}
-    checkAbductions(d.standings);
+    checkAbductions(d.standings, d.games);
     renderStandings(d.standings);
     renderBracket(d.bracket);
     renderGames(d.games);
