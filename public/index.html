@@ -247,61 +247,91 @@ details[open] .accordion-toggle::before { transform: rotate(90deg); }
 }
 
 /* Bracket */
-.bracket-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 0 0 16px; }
+.bracket-wrap { padding: 0; }
+
+/* Round tabs (pill bar) */
+.round-tabs {
+  display: flex; gap: 4px; padding: 8px 12px; overflow-x: auto;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  position: sticky; top: 0; z-index: 10; background: var(--bg);
+}
+.round-tabs::-webkit-scrollbar { display: none; }
+.round-tab {
+  flex-shrink: 0; padding: 6px 14px; border-radius: 20px;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.3px;
+  background: var(--card); color: var(--dim); border: 1px solid var(--card-border);
+  cursor: pointer; transition: all 0.2s ease; white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+.round-tab.active {
+  background: var(--accent); color: #fff; border-color: var(--accent);
+}
+.round-tab.has-live {
+  border-color: var(--yellow); box-shadow: 0 0 8px rgba(255,204,0,0.3);
+}
+.round-tab.has-live.active {
+  background: var(--yellow); color: #000; border-color: var(--yellow);
+}
+
+/* Round panel (slide container) */
+.round-panels { position: relative; overflow: hidden; }
+.round-panel {
+  display: none; opacity: 0; padding: 8px 0;
+  animation: panelIn 0.25s ease forwards;
+}
+.round-panel.active { display: block; }
+@keyframes panelIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Region within a round */
+.bracket-region { margin-bottom: 12px; }
 .region-header {
-  font-size: 13px; font-weight: 800; color: var(--text); text-transform: uppercase;
-  letter-spacing: 1.2px; padding: 12px 8px 6px; border-bottom: 2px solid var(--accent);
-  margin-bottom: 4px;
+  font-size: 11px; font-weight: 800; color: var(--dim); text-transform: uppercase;
+  letter-spacing: 1px; padding: 8px 14px 4px;
 }
-.region-bracket { display: flex; gap: 0; min-width: fit-content; align-items: stretch; margin-bottom: 20px; }
-.bracket-round { display: flex; flex-direction: column; min-width: 155px; justify-content: space-around; }
-.round-label {
-  font-size: 9px; font-weight: 700; color: var(--dim); text-transform: uppercase;
-  letter-spacing: 0.8px; text-align: center; padding: 4px 4px 4px; white-space: nowrap;
-}
-.bracket-game {
-  display: flex; flex-direction: column; justify-content: center;
-  flex: 1; padding: 2px 4px;
-}
+
+/* Game matchup card */
+.bracket-game { padding: 4px 12px; }
 .bracket-slot {
   background: var(--card); border: 1px solid var(--card-border);
-  border-radius: 6px; overflow: hidden; margin: 2px 0;
+  border-radius: 10px; overflow: hidden;
 }
 .bracket-slot.live { border-color: var(--yellow); }
 .bracket-team {
-  display: flex; align-items: center; padding: 4px 6px; gap: 3px;
-  font-size: 11px; font-weight: 600; min-height: 26px;
+  display: flex; align-items: center; padding: 10px 12px; gap: 6px;
+  font-size: 13px; font-weight: 600; min-height: 40px;
 }
 .bracket-team + .bracket-team { border-top: 1px solid var(--card-border); }
 .bracket-team.winner { color: var(--green); }
 .bracket-team.loser { opacity: 0.4; }
 .bracket-team.abducted .bracket-owner { background: var(--yellow-bg); color: var(--yellow); }
-.bracket-time { font-size: 8px; color: rgba(255,255,255,0.35); text-align: center; padding: 1px 0; letter-spacing: 0.3px; }
+.bracket-time {
+  font-size: 10px; color: rgba(255,255,255,0.35); text-align: center;
+  padding: 3px 0; letter-spacing: 0.3px; border-top: 1px solid var(--card-border);
+}
 .bracket-slot.live .bracket-time { color: var(--yellow); opacity: 0.8; }
-.bracket-spread { font-size: 9px; font-weight: 700; padding: 1px 4px; border-radius: 3px; margin-left: 2px; }
+.bracket-spread { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 3px; margin-left: 2px; }
 .bracket-spread.fav { color: var(--red); opacity: 0.7; }
 .bracket-spread.dog { color: var(--green); opacity: 0.7; }
 .bracket-seed {
-  width: 16px; height: 16px; display: flex; align-items: center; justify-content: center;
-  font-size: 9px; font-weight: 700; color: var(--accent); background: var(--accent-bg);
-  border-radius: 4px; flex-shrink: 0;
+  width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: var(--accent); background: var(--accent-bg);
+  border-radius: 5px; flex-shrink: 0;
 }
 .bracket-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bracket-owner {
-  font-size: 8px; font-weight: 700; color: var(--accent); background: var(--accent-bg);
-  padding: 1px 4px; border-radius: 3px; flex-shrink: 0; max-width: 50px;
+  font-size: 9px; font-weight: 700; color: var(--accent); background: var(--accent-bg);
+  padding: 2px 6px; border-radius: 4px; flex-shrink: 0; max-width: 55px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.bracket-score { font-size: 12px; font-weight: 700; min-width: 20px; text-align: right; flex-shrink: 0; }
-.bracket-tbd { color: var(--dim); font-style: italic; font-size: 10px; }
-.bracket-connector { width: 10px; display: flex; flex-direction: column; }
-.ff-section {
-  margin-top: 8px; padding-top: 8px;
-  border-top: 2px solid var(--accent);
-}
+.bracket-score { font-size: 14px; font-weight: 700; min-width: 24px; text-align: right; flex-shrink: 0; }
+.bracket-tbd { color: var(--dim); font-style: italic; font-size: 12px; padding: 10px 12px; }
+.bracket-connector { display: none; }
+
+/* Final Four section (shown as games in their own round tab) */
+.ff-section { padding: 0; }
 .ff-header {
-  font-size: 13px; font-weight: 800; color: var(--text); text-transform: uppercase;
-  letter-spacing: 1.2px; padding: 0 8px 8px; text-align: center;
+  font-size: 11px; font-weight: 800; color: var(--dim); text-transform: uppercase;
+  letter-spacing: 1px; padding: 8px 14px 4px;
 }
 .ff-games { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .ff-game { width: 200px; }
@@ -762,81 +792,143 @@ function renderBracket(data) {
   const el = document.getElementById('bracketView');
   if (!data || !data.regions) { el.innerHTML = '<div class="empty">No bracket data</div>'; return; }
 
-  let html = '<div class="bracket-wrap">';
+  // Collect all rounds across regions into a unified structure
+  const roundDefs = ['1st Round', '2nd Round', 'Sweet 16', 'Elite 8'];
+  const roundData = {}; // { roundName: { regionName: [games] } }
+  for (const rd of roundDefs) roundData[rd] = {};
 
-  // Render each region
   for (const regionName of ['East', 'West', 'South', 'Midwest']) {
     const rounds = data.regions[regionName];
-    if (!rounds || rounds.length === 0) continue;
+    if (!rounds) continue;
+    rounds.forEach(r => {
+      if (roundData[r.name]) roundData[r.name][regionName] = r.games;
+    });
+  }
 
-    html += `<div class="region-header">${esc(regionName)} Region</div>`;
-    html += '<div class="region-bracket">';
+  // Add Final Four + Championship as rounds
+  roundData['Final Four'] = { _special: data.finalFour || [] };
+  roundData['Championship'] = { _special: data.championship ? [data.championship] : [] };
 
-    rounds.forEach((round, ri) => {
-      html += '<div class="bracket-round">';
-      html += `<div class="round-label">${esc(round.name)}</div>`;
+  const allRounds = [...roundDefs, 'Final Four', 'Championship'];
 
-      round.games.forEach(g => {
+  // Determine current/active round: latest round with live games, or latest with upcoming, or latest with final
+  let activeRound = allRounds[0];
+  for (const rd of allRounds) {
+    const regions = roundData[rd];
+    const allGames = Object.values(regions).flat();
+    const hasLive = allGames.some(g => g && g.isLive);
+    const hasUpcoming = allGames.some(g => g && !g.isFinal && !g.isLive);
+    const hasFinal = allGames.some(g => g && g.isFinal);
+    if (hasLive || hasUpcoming || hasFinal) activeRound = rd;
+    if (hasLive) { activeRound = rd; break; } // Live always wins
+  }
+
+  // Build tab bar
+  let html = '<div class="bracket-wrap">';
+  html += '<div class="round-tabs">';
+  for (const rd of allRounds) {
+    const regions = roundData[rd];
+    const allGames = Object.values(regions).flat();
+    const hasLive = allGames.some(g => g && g.isLive);
+    const isActive = rd === activeRound;
+    const cls = ['round-tab'];
+    if (isActive) cls.push('active');
+    if (hasLive) cls.push('has-live');
+    html += `<div class="${cls.join(' ')}" data-round="${esc(rd)}">${esc(rd)}</div>`;
+  }
+  html += '</div>';
+
+  // Build round panels
+  html += '<div class="round-panels">';
+  for (const rd of allRounds) {
+    const isActive = rd === activeRound;
+    html += `<div class="round-panel${isActive ? ' active' : ''}" data-round="${esc(rd)}">`;
+
+    if (rd === 'Final Four') {
+      const games = roundData[rd]._special || [];
+      html += '<div class="bracket-region">';
+      games.forEach(g => {
+        if (!g) return;
         const hasScores = g.isFinal || g.isLive;
-        let timeLabel = '';
-        if (g.isFinal) timeLabel = 'Final';
-        else if (g.isLive) timeLabel = g.statusDetail || 'Live';
-        else if (g.statusDetail) {
-          const dateMatch = g.statusDetail.match(/(\d{1,2}\/\d{1,2})\s*-\s*(\d{1,2}:\d{2}\s*[AP]M)/i);
-          if (dateMatch) {
-            const today = new Date();
-            const todayStr = (today.getMonth()+1) + '/' + today.getDate();
-            timeLabel = dateMatch[1] === todayStr ? dateMatch[2] : dateMatch[1] + ' ' + dateMatch[2];
-          } else {
-            const m = g.statusDetail.match(/(\d{1,2}:\d{2}\s*[AP]M)/i);
-            timeLabel = m ? m[1] : '';
-          }
-        }
+        let timeLabel = bracketTimeLabel(g);
         html += `<div class="bracket-game"><div class="bracket-slot${g.isLive ? ' live' : ''}">`;
         html += bracketTeamRow(g.team1, g, hasScores);
         if (timeLabel) html += `<div class="bracket-time">${esc(timeLabel)}</div>`;
         html += bracketTeamRow(g.team2, g, hasScores);
         html += '</div></div>';
       });
-
       html += '</div>';
-      if (ri < rounds.length - 1) html += '<div class="bracket-connector"></div>';
-    });
-
-    html += '</div>';
-  }
-
-  // Final Four + Championship
-  if (data.finalFour) {
-    html += '<div class="ff-section">';
-    html += '<div class="ff-header">Final Four</div>';
-    html += '<div class="ff-games">';
-    data.finalFour.forEach(g => {
-      const hasScores = g.isFinal || g.isLive;
-      html += `<div class="ff-game">`;
-      if (g.label) html += `<div class="ff-label">${esc(g.label)}</div>`;
-      html += `<div class="bracket-slot${g.isLive ? ' live' : ''}">`;
-      html += bracketTeamRow(g.team1, g, hasScores);
-      html += bracketTeamRow(g.team2, g, hasScores);
-      html += '</div></div>';
-    });
-    html += '</div>';
-
-    if (data.championship) {
-      html += '<div class="ff-header" style="padding-top:12px">Championship</div>';
-      html += '<div class="ff-games">';
-      const g = data.championship;
-      const hasScores = g.isFinal || g.isLive;
-      html += `<div class="ff-game"><div class="bracket-slot${g.isLive ? ' live' : ''}">`;
-      html += bracketTeamRow(g.team1, g, hasScores);
-      html += bracketTeamRow(g.team2, g, hasScores);
-      html += '</div></div></div>';
+    } else if (rd === 'Championship') {
+      const games = roundData[rd]._special || [];
+      html += '<div class="bracket-region">';
+      games.forEach(g => {
+        if (!g) return;
+        const hasScores = g.isFinal || g.isLive;
+        let timeLabel = bracketTimeLabel(g);
+        html += `<div class="bracket-game"><div class="bracket-slot${g.isLive ? ' live' : ''}">`;
+        html += bracketTeamRow(g.team1, g, hasScores);
+        if (timeLabel) html += `<div class="bracket-time">${esc(timeLabel)}</div>`;
+        html += bracketTeamRow(g.team2, g, hasScores);
+        html += '</div></div>';
+      });
+      html += '</div>';
+    } else {
+      for (const regionName of ['East', 'West', 'South', 'Midwest']) {
+        const games = roundData[rd][regionName];
+        if (!games || games.length === 0) continue;
+        html += `<div class="bracket-region">`;
+        html += `<div class="region-header">${esc(regionName)}</div>`;
+        games.forEach(g => {
+          const hasScores = g.isFinal || g.isLive;
+          let timeLabel = bracketTimeLabel(g);
+          html += `<div class="bracket-game"><div class="bracket-slot${g.isLive ? ' live' : ''}">`;
+          html += bracketTeamRow(g.team1, g, hasScores);
+          if (timeLabel) html += `<div class="bracket-time">${esc(timeLabel)}</div>`;
+          html += bracketTeamRow(g.team2, g, hasScores);
+          html += '</div></div>';
+        });
+        html += '</div>';
+      }
     }
     html += '</div>';
   }
-
-  html += '</div>';
+  html += '</div></div>';
   el.innerHTML = html;
+
+  // Tab switching
+  el.querySelectorAll('.round-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const rd = tab.dataset.round;
+      el.querySelectorAll('.round-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      el.querySelectorAll('.round-panel').forEach(p => {
+        p.classList.remove('active');
+        if (p.dataset.round === rd) p.classList.add('active');
+      });
+      // Scroll tab into view
+      tab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    });
+  });
+
+  // Auto-scroll active tab into view
+  const activeTab = el.querySelector('.round-tab.active');
+  if (activeTab) setTimeout(() => activeTab.scrollIntoView({ block: 'nearest', inline: 'center' }), 50);
+}
+
+function bracketTimeLabel(g) {
+  if (g.isFinal) return 'Final';
+  if (g.isLive) return g.statusDetail || 'Live';
+  if (g.statusDetail) {
+    const dateMatch = g.statusDetail.match(/(\d{1,2}\/\d{1,2})\s*-\s*(\d{1,2}:\d{2}\s*[AP]M)/i);
+    if (dateMatch) {
+      const today = new Date();
+      const todayStr = (today.getMonth()+1) + '/' + today.getDate();
+      return dateMatch[1] === todayStr ? dateMatch[2] : dateMatch[1] + ' ' + dateMatch[2];
+    }
+    const m = g.statusDetail.match(/(\d{1,2}:\d{2}\s*[AP]M)/i);
+    if (m) return m[1];
+  }
+  return '';
 }
 
 function bracketTeamRow(t, game, hasScores) {
