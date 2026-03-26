@@ -618,15 +618,29 @@ function renderGames(data) {
     html += live.map(g => gameCard(g, 'live')).join('');
   }
   if (upcoming?.length) {
-    // Group by section dynamically
-    const sectionOrder = ['Thursday', 'Friday', 'Saturday', 'Sunday', 'Sweet 16', 'Elite 8', 'Final Four', 'Championship'];
+    // Determine the current round name for the big header
+    const roundNames = ['Play-In', 'First Round', 'Second Round', 'Sweet 16', 'Elite 8', 'Final Four', 'Championship'];
+    // Infer round from first upcoming game's original round (before day relabeling)
+    // For now, derive from total completed + upcoming context
+    const totalGames = (completed?.length || 0) + upcoming.length + (live?.length || 0);
+    let roundLabel = 'Upcoming';
+    if (totalGames <= 4) roundLabel = 'Play-In';
+    else if (totalGames <= 36) roundLabel = 'First Round';
+    else if (totalGames <= 52) roundLabel = 'Second Round';
+    else if (totalGames <= 60) roundLabel = 'Sweet 16';
+    else if (totalGames <= 64) roundLabel = 'Elite 8';
+    else if (totalGames <= 66) roundLabel = 'Final Four';
+    else roundLabel = 'Championship';
+    html += `<div style="font-size:18px;font-weight:800;text-align:center;margin:12px 0 4px;letter-spacing:0.5px;">${roundLabel}</div>`;
+
+    // Group by day
+    const sectionOrder = ['Thursday', 'Friday', 'Saturday', 'Sunday'];
     const sections = {};
     upcoming.forEach(g => {
       const s = g.section || 'Upcoming';
       if (!sections[s]) sections[s] = [];
       sections[s].push(g);
     });
-    // Render in order, then any remaining
     const rendered = new Set();
     for (const s of sectionOrder) {
       if (sections[s]?.length) {
@@ -652,21 +666,12 @@ function renderGames(data) {
       if (!roundGroups[s]) roundGroups[s] = [];
       roundGroups[s].push(g);
     });
-    // Show most recent round expanded, older rounds collapsed
-    let isFirst = true;
+    // All completed rounds collapsed
     for (const rnd of roundOrder) {
       if (!roundGroups[rnd]?.length) continue;
       const count = roundGroups[rnd].length;
-      if (isFirst) {
-        // Latest round — show expanded
-        html += `<div class="section-label">${rnd} Results</div>`;
-        html += roundGroups[rnd].map(g => gameCard(g, 'final')).join('');
-        isFirst = false;
-      } else {
-        // Older rounds — collapsed accordion
-        html += `<details class="completed-accordion"><summary class="section-label accordion-toggle">${rnd} <span class="completed-count">(${count})</span></summary>`;
-        html += '<div class="accordion-body">' + roundGroups[rnd].map(g => gameCard(g, 'final')).join('') + '</div></details>';
-      }
+      html += `<details class="completed-accordion"><summary class="section-label accordion-toggle">${rnd} Results <span class="completed-count">(${count})</span></summary>`;
+      html += '<div class="accordion-body">' + roundGroups[rnd].map(g => gameCard(g, 'final')).join('') + '</div></details>';
       delete roundGroups[rnd];
     }
     // Any remaining sections
