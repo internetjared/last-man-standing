@@ -73,9 +73,15 @@ function parseCSV(text) {
 }
 
 async function fetchCSV(url) {
-  const res = await fetch(url, { redirect: 'follow' });
-  if (!res.ok) throw new Error(`CSV fetch failed: ${res.status}`);
-  return parseCSV(await res.text());
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(url, { redirect: 'follow', signal: controller.signal });
+    if (!res.ok) throw new Error(`CSV fetch failed: ${res.status}`);
+    return parseCSV(await res.text());
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 // --- ESPN ---
@@ -85,19 +91,28 @@ async function fetchESPN() {
   // Scan full tournament window including play-in games
   const start = new Date('2026-03-17'); // Play-in games start 3/17
   const end = new Date(); end.setDate(end.getDate() + 2);
+  
+  // Build all date strings first, then fetch in parallel (was sequential — caused cold start timeouts)
+  const dateStrings = [];
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const ds = d.toISOString().slice(0, 10).replace(/-/g, '');
-    try {
-      const res = await fetch(`${ESPN_SCOREBOARD}?groups=100&dates=${ds}`);
-      if (!res.ok) continue;
-      const data = await res.json();
-      for (const ev of (data.events || [])) {
-        if (seen.has(ev.id)) continue;
-        seen.add(ev.id);
-        const g = parseESPNEvent(ev);
-        if (g) allGames.push(g);
-      }
-    } catch (e) { /* skip */ }
+    dateStrings.push(d.toISOString().slice(0, 10).replace(/-/g, ''));
+  }
+  
+  const results = await Promise.allSettled(
+    dateStrings.map(ds =>
+      fetch(`${ESPN_SCOREBOARD}?groups=100&dates=${ds}`)
+        .then(res => res.ok ? res.json() : null)
+    )
+  );
+  
+  for (const result of results) {
+    if (result.status !== 'fulfilled' || !result.value) continue;
+    for (const ev of (result.value.events || [])) {
+      if (seen.has(ev.id)) continue;
+      seen.add(ev.id);
+      const g = parseESPNEvent(ev);
+      if (g) allGames.push(g);
+    }
   }
   return allGames;
 }
@@ -886,6 +901,20 @@ app.get('/icon-192.png', (req, res) => {
 });
 app.get('/icon-512.png', (req, res) => {
   res.type('image/png').send(fs.readFileSync(path.join(publicDir, 'icon-512.png')));
+});
+
+// Ensure HTML and SW are never cached by CDN/browser — always serve fresh
+app.get(['/', '/index.html'], (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('CDN-Cache-Control', 'no-store');
+  res.set('Vercel-CDN-Cache-Control', 'no-store');
+  res.sendFile(path.join(publicDir, 'index.html'));
+});
+app.get('/sw.js', (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.set('Service-Worker-Allowed', '/');
+  res.set('Content-Type', 'application/javascript');
+  res.sendFile(path.join(publicDir, 'sw.js'));
 });
 
 app.use(express.static(publicDir));

@@ -1074,8 +1074,17 @@ function showAbductionBanners(abductions) {
 }
 
 async function load() {
+  let fetchErr = null;
   try {
-    const res = await fetch('/api/data');
+    // Add cache-busting param and no-cache headers to bypass any proxy/CDN caching
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    const res = await fetch('/api/data?_=' + Date.now(), {
+      signal: controller.signal,
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+    });
+    clearTimeout(timeout);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const d = await res.json();
     // Cache successful response in localStorage for offline fallback
@@ -1087,7 +1096,8 @@ async function load() {
     document.getElementById('clock').innerHTML =
       `<span class="live-dot"></span> ${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
   } catch (e) {
-    console.error(e);
+    fetchErr = e;
+    console.error('load() failed:', e.name, e.message);
     document.getElementById('clock').textContent = 'Error';
     // Try cached data first
     try {
@@ -1112,18 +1122,22 @@ async function load() {
 load();
 setInterval(load, 15000);
 
-// Nuclear cache bust — force unregister old SW, clear all caches, then re-register fresh
+// Service worker: register once and let the browser handle updates naturally.
+// No nuclear unregister/re-register — that causes race conditions and kills cache fallbacks.
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(regs => {
-    const nuked = regs.map(r => r.unregister());
-    return Promise.all(nuked);
-  }).then(() => caches.keys()).then(keys => {
-    return Promise.all(keys.map(k => caches.delete(k)));
-  }).then(() => {
-    navigator.serviceWorker.register('/sw.js?v=10');
-  }).catch(() => {
-    navigator.serviceWorker.register('/sw.js?v=10').catch(() => {});
-  });
+  // One-time cleanup: nuke old caches from prior SW versions, then register fresh
+  const SW_SETUP_KEY = 'lms_sw_v11';
+  if (!localStorage.getItem(SW_SETUP_KEY)) {
+    // First load after update: clear stale caches from old SW versions
+    caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).then(() => {
+      localStorage.setItem(SW_SETUP_KEY, '1');
+      return navigator.serviceWorker.register('/sw.js');
+    }).catch(() => {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
+  } else {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
 }
 
 // Pull to refresh — pushes content down like native iOS
