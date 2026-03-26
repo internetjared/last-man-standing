@@ -1112,9 +1112,18 @@ async function load() {
 load();
 setInterval(load, 15000);
 
-// Register service worker
+// Nuclear cache bust — force unregister old SW, clear all caches, then re-register fresh
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    const nuked = regs.map(r => r.unregister());
+    return Promise.all(nuked);
+  }).then(() => caches.keys()).then(keys => {
+    return Promise.all(keys.map(k => caches.delete(k)));
+  }).then(() => {
+    navigator.serviceWorker.register('/sw.js?v=10');
+  }).catch(() => {
+    navigator.serviceWorker.register('/sw.js?v=10').catch(() => {});
+  });
 }
 
 // Pull to refresh — pushes content down like native iOS
